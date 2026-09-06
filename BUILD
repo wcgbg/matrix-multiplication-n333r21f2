@@ -1,0 +1,12 @@
+load(
+    "@hedron_compile_commands//:refresh_compile_commands.bzl",
+    "refresh_compile_commands",
+)
+
+package(default_visibility = ["//visibility:public"])
+
+refresh_compile_commands(
+    name = "refresh_compile_commands",
+    exclude_external_sources = True,
+    targets = {"//...": "--config=opt"},
+)

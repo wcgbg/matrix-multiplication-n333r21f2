@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package pb;
+
+// Proof certificates for bilinear tensor rank lower bounds.
+
+message FlattenMatrixProof {}
+
+message ForcedProductProof {
+  // 0, 1, or 2: which of the three cyclic positions yielded the bound.
+  uint32 projection_type = 1;
+}
+
+message Transformation {
+  fixed32 query_elem = 1;
+  fixed32 store_elem = 2;
+}
+
+message DegenerateProof {
+  // EncodeGFVec-encoded constraint row appended to the base constraint set
+  // before being mapped by Transformation into a known orbit.
+  fixed32 extra_constraint = 1;
+  Transformation transformation = 2;
+}
+
+message BacktrackingProof {
+  // The on-disk proof bytes live in a sidecar file; this just records the
+  // expected length so the verifier can sanity-check.
+  uint32 proof_size = 1;
+}
+
+message RankOneSpanProof {
+  // 0, 1, or 2: the number of cyclic transposes applied before slicing along
+  // the (rotated) A axis — the same convention as
+  // ForcedProductProof.projection_type. Self-contained: the verifier re-runs
+  // the rank-one-span exclusion on this axis at rank_lower_bound - 1.
+  uint32 slice_axis = 1;
+}
+
+message RankLowerBoundProof {
+  oneof proof {
+    FlattenMatrixProof flatten_matrix_proof = 1;
+    ForcedProductProof forced_product_proof = 2;
+    DegenerateProof degenerate_proof = 3;
+    BacktrackingProof backtracking_proof = 4;
+    RankOneSpanProof rank_one_span_proof = 5;
+  }
+  reserved 6;
+}
+
+message ConstrainedTensor {
+  uint32 index = 1;
+  bytes constraints = 2;
+  string constraints_text = 3;
+  string tensor_text = 4;
+  optional int32 rank_lower_bound = 5;
+  RankLowerBoundProof rank_lower_bound_proof = 6;
+  optional int32 rank_upper_bound = 7;
+  string rank_upper_bound_proof = 8;
+}
+
+message Certificate {
+  string problem_name = 1;
+  int32 characteristic = 2;   // field characteristic (p)
+  int32 extension_degree = 3; // base-field extension degree (m)
+  int32 na = 4;
+  int32 nb = 5;
+  int32 nc = 6;
+  repeated ConstrainedTensor constrained_tensors = 7;
+}
