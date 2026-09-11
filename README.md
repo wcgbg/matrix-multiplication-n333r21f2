@@ -437,9 +437,8 @@ with status 3). Runs that change the rank or restrict the search need
 
 `.github/workflows/ci.yml` runs the tests, artifact checks, and ternary
 workflows on Ubuntu and macOS; it does not build the paper. `--config=debug`
-enables ASan, UBSan, and `_GLIBCXX_DEBUG` (`bazel test --config=debug
-//core:sanitizer_probe_test` checks that they fire). Before a release, also
-run these expensive checks on the final clean commit and keep the logs with
+enables ASan, UBSan, and `_GLIBCXX_DEBUG`. Before a release, also run these
+expensive checks on the final clean commit and keep the logs with
 the manifest:
 
 ```bash

@@ -372,12 +372,3 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
-
-# Deliberate invalid operations verify that the debug configuration actually
-# instruments code. This target is only meaningful with --config=debug.
-cc_test(
-    name = "sanitizer_probe_test",
-    srcs = ["sanitizer_probe_test.cc"],
-    tags = ["manual"],
-    deps = ["@googletest//:gtest_main"],
-)

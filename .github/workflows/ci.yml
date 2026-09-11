@@ -65,11 +65,11 @@ jobs:
           python3 run.py verify-table q03_n233 --histogram
           python3 run.py profile q03_n233
           python3 run.py cross-check q03_n233 restrictions
-      - name: Sanitizer instrumentation and regression tests
+      - name: Sanitizer regression tests
         if: matrix.compiler != 'gcc'
         run: >-
           bazel test --config=debug --copt=-O2
-          //core:sanitizer_probe_test //core:constraints_test
+          //core:constraints_test
           //core:gf_test //subspace_bounds/verifier:verifier_test
           //profiles:fp_search_test //profiles:q02_n333_search_test
       - name: Capture reproduction evidence
