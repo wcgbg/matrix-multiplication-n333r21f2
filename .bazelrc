@@ -33,12 +33,12 @@ build:debug --copt=-g
 build:debug --copt=-O0
 build:debug --copt=-D_GLIBCXX_DEBUG
 build:debug --linkopt=-g
-build:debug --linkopt=-fsanitize=address
-build:debug --linkopt=-fsanitize=undefined
-build:debug --linkopt=-fsanitize=integer
-build:debug --linkopt=-fsanitize=float-divide-by-zero
-build:debug --linkopt=-fsanitize=float-cast-overflow
-build:debug --linkopt=-fsanitize=null
-build:debug --linkopt=-fsanitize=bounds
-build:debug --linkopt=-fsanitize=alignment
+# Both compile and link instrumentation are required. These flags work with
+# Clang and GCC; Clang-only integer sanitization is intentionally not enabled
+# because the hashing and finite-field code uses defined unsigned wraparound.
+build:debug --copt=-fsanitize=address,undefined
+build:debug --linkopt=-fsanitize=address,undefined
+build:debug --copt=-fno-sanitize-recover=all
+build:debug --linkopt=-fno-sanitize-recover=all
+build:debug --copt=-fno-omit-frame-pointer
 build:debug --spawn_strategy=local

@@ -167,7 +167,7 @@ TEST(DynamicMatrixTest, Plus_DimensionsMatch) {
   EXPECT_EQ(sum.ToString(), "[1]");
 }
 
-// --- F_3 coverage: the odd-prime pivot normalisation path -----------------
+// --- F_3 coverage: the odd-prime pivot normalization path -----------------
 
 TEST(DynamicMatrixF3Test, RankPivotsViaInverse) {
   // diag(2, 2): each pivot is scaled by its inverse (2 * 2 = 1 mod 3).

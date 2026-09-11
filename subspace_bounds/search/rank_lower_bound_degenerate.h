@@ -8,10 +8,8 @@
 // possible extra constraint, keep those that stay linearly independent, look
 // the resulting (one-larger) subspace up in the OrbitMap, and take the best.
 //
-// Faithful port of rank_search/rank_lower_bound_computer.h's
-// RankLowerBoundDegenerate, with the matrix data type swapped for the NA-wide
-// GFVec row and the (transpose, gl_left, gl_right) witness replaced by the
-// OrbitMap's (query_elem, store_elem) witness.
+// Records the extra constraint and OrbitMap's (query_elem, store_elem)
+// witness so the verifier can recover the referenced canonical subspace.
 
 #include <cstdint>
 #include <utility>
@@ -25,9 +23,9 @@
 #include "subspace_bounds/search/orbit_map.h"
 
 template <class Problem>
-std::pair<int, pb::DegenerateProof> RankLowerBoundDegenerate(
-    const OrbitMap<Problem> &orbit_map,
-    Constraints<Problem::kP, Problem::kNA> constraints) {
+std::pair<int, pb::DegenerateProof>
+RankLowerBoundDegenerate(const OrbitMap<Problem> &orbit_map,
+                         Constraints<Problem::kP, Problem::kNA> constraints) {
   constexpr int NA = Problem::kNA;
   constexpr int P = Problem::kP;
   using Row = GFVec<P, NA>;
@@ -55,8 +53,8 @@ std::pair<int, pb::DegenerateProof> RankLowerBoundDegenerate(
         rank_lower_bound = found;
         const uint64_t encoded = EncodeGFVec<P, NA>(constraint);
         CHECK_LT(encoded, uint64_t{1} << 32)
-            << "extra_constraint overflows fixed32 (P=" << P
-            << ", NA=" << NA << "); widen the proto field if you hit this.";
+            << "extra_constraint overflows fixed32 (P=" << P << ", NA=" << NA
+            << "); widen the proto field if you hit this.";
         degenerate_proof.set_extra_constraint(static_cast<uint32_t>(encoded));
         // The witness elements double as their group-enumeration indices (the
         // opaque fixed32 the proto stores); this holds for groups whose

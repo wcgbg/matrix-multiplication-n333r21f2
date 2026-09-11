@@ -69,13 +69,15 @@ template <int P, int N0, int N1, int N2> void CheckGroup(int store_samples) {
 
   std::mt19937_64 rng(3);
   std::vector<int> store_idx;
-  for (int t = 0; t < g.store.Size(); ++t) store_idx.push_back(t);
+  for (int t = 0; t < g.store.Size(); ++t)
+    store_idx.push_back(t);
   std::shuffle(store_idx.begin(), store_idx.end(), rng);
   store_idx.resize(std::min<int>(store_samples, store_idx.size()));
   for (int t : store_idx) {
     const auto store = g.store.At(t);
     std::set<Vec> image;
-    for (const Vec &v : domain) image.insert(g.store.Apply(store, v));
+    for (const Vec &v : domain)
+      image.insert(g.store.Apply(store, v));
     EXPECT_EQ(image.size(), domain.size()) << "store t=" << t;
     for (const Vec &v : domain) {
       EXPECT_EQ(g.store.ApplyInverse(store, g.store.Apply(store, v)), v);
@@ -85,7 +87,8 @@ template <int P, int N0, int N1, int N2> void CheckGroup(int store_samples) {
   for (int s = 0; s < g.query.Size(); ++s) {
     const auto query = g.query.At(s);
     std::set<Vec> image;
-    for (const Vec &v : domain) image.insert(g.query.Apply(query, v));
+    for (const Vec &v : domain)
+      image.insert(g.query.Apply(query, v));
     EXPECT_EQ(image.size(), domain.size()) << "query s=" << s;
     for (const Vec &v : domain) {
       EXPECT_EQ(g.query.ApplyInverse(query, g.query.Apply(query, v)), v);
@@ -104,7 +107,8 @@ TEST(FpSymmetryGroupTest, QueryElemPacksIntoUint32) {
   FpSymmetryGroup<3, 2, 2, 2> g;
   for (int s = 0; s < g.query.Size(); ++s) {
     const auto e = g.query.At(s);
-    const auto back = FpSymmetryGroup<3, 2, 2, 2>::QueryElem(static_cast<uint32_t>(e));
+    const auto back =
+        FpSymmetryGroup<3, 2, 2, 2>::QueryElem(static_cast<uint32_t>(e));
     EXPECT_EQ(back.l, e.l);
     EXPECT_EQ(back.transpose, e.transpose);
   }
@@ -120,7 +124,8 @@ Constraints<P, NA> RandomConstraints(std::mt19937_64 &rng) {
   const int target_dim = dim_dist(rng);
   for (int i = 0; i < target_dim; ++i) {
     Vec v{};
-    for (int j = 0; j < NA; ++j) v.Set(j, F{static_cast<uint8_t>(digit_dist(rng))});
+    for (int j = 0; j < NA; ++j)
+      v.Set(j, F{static_cast<uint8_t>(digit_dist(rng))});
     rows.push_back(v);
   }
   const int rank = GaussJordanRREF<P, NA>(&rows);
@@ -144,7 +149,8 @@ std::array<int, 3> ThreeRanks(const Tensor<P, N0 * N1, N1 * N2, N2 * N0> &t) {
 // check the three flattening ranks (as a multiset, since the cubic transpose
 // swaps two modes). Store elements are sampled (GL(3,3) has 11,232).
 template <int P, int N0, int N1, int N2>
-void CheckConstraintSymmetryInvariance(std::mt19937_64 &rng, int trials, int store_samples) {
+void CheckConstraintSymmetryInvariance(std::mt19937_64 &rng, int trials,
+                                       int store_samples) {
   constexpr int NA = N0 * N1, NB = N1 * N2, NC = N2 * N0;
   FpSymmetryGroup<P, N0, N1, N2> g;
   using Tn = Tensor<P, NA, NB, NC>;
@@ -168,11 +174,13 @@ void CheckConstraintSymmetryInvariance(std::mt19937_64 &rng, int trials, int sto
         const int transformed_dim = GaussJordanRREF<P, NA>(&transformed);
         EXPECT_EQ(transformed_dim, static_cast<int>(constraints.size()));
 
-        const Tn t1 = ApplyConstraintsToTensor<P, NA, NB, NC>(transformed, tensor);
+        const Tn t1 =
+            ApplyConstraintsToTensor<P, NA, NB, NC>(transformed, tensor);
         std::array<int, 3> r1 = ThreeRanks<P, N0, N1, N2>(t1);
         std::sort(r1.begin(), r1.end());
-        EXPECT_EQ(r0, r1) << "N0=" << N0 << " N1=" << N1 << " N2=" << N2 << " trial=" << trial
-                          << " query.l=" << query.l << " query.t=" << query.transpose
+        EXPECT_EQ(r0, r1) << "N0=" << N0 << " N1=" << N1 << " N2=" << N2
+                          << " trial=" << trial << " query.l=" << query.l
+                          << " query.t=" << query.transpose
                           << " store=" << store;
       }
     }
@@ -181,8 +189,10 @@ void CheckConstraintSymmetryInvariance(std::mt19937_64 &rng, int trials, int sto
 
 TEST(FpSymmetryGroupTest, ConstraintCommutesWithSymmetry) {
   std::mt19937_64 rng;
-  CheckConstraintSymmetryInvariance<3, 2, 2, 2>(rng, 20, 48); // cubic, all of GL(2,3)
-  CheckConstraintSymmetryInvariance<3, 2, 3, 3>(rng, 20, 20); // the ⟨2,3,3⟩ target
+  CheckConstraintSymmetryInvariance<3, 2, 2, 2>(rng, 20,
+                                                48); // cubic, all of GL(2,3)
+  CheckConstraintSymmetryInvariance<3, 2, 3, 3>(rng, 20,
+                                                20); // the ⟨2,3,3⟩ target
   CheckConstraintSymmetryInvariance<5, 2, 2, 3>(rng, 5, 10);
 }
 

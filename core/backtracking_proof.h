@@ -1,16 +1,14 @@
 #pragma once
 
 // Compressed on-disk trace of the Substitution-with-Backtracking proof
-// (Algorithm 2). Port of the matrix-mult
-// proof_verifier/backtracking_proof.{h,cc}; the only change is the witness
-// payload: the matrix code stored (transpose, gl_left, gl_right) per step,
-// whereas the poly framework's OrbitMap returns a (query_elem, store_elem)
-// witness, so each step records those two opaque group-element indices instead.
+// (Algorithm 2). Each leaf records the (query_elem, store_elem) witness
+// returned by OrbitMap::Get as two uint32 values. These encode matrices and
+// packed transformations, not positions in the group enumeration.
 //
 // One record per DFS leaf at which the prover reached the target bound. The
 // records appear in DFS pre-order; the verifier replays the same deterministic
 // DFS over the base subspace's minimal constraints and consumes them in order
-// (see core/backtracking_verifier.h).
+// (see subspace_bounds/verifier/backtracking_verifier.h).
 //
 // All of a certificate's per-orbit traces are stored together in a single
 // BacktrackingProofArchive file, `<cert_without_extension>.btp`: a small header
@@ -81,8 +79,7 @@ struct BacktrackingProof {
 };
 
 // All per-orbit backtracking traces for one certificate, indexed by the dense
-// orbit index. Replaces the old sharded `<cert>_btp/<idx/1000>/<idx%1000>.btp`
-// directory. Mutated only serially (the prover writes it at each checkpoint);
+// orbit index. Mutated only serially (the prover writes it at each checkpoint);
 // read concurrently during verification (const access is thread-safe).
 //
 // Each orbit's trace is stored gzip-compressed in `compressed`; presence is

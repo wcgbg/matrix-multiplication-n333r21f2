@@ -3,11 +3,12 @@
 // Orbit enumerator (fast): classify all subspaces of (𝔽_q^NA)* under the
 // SymmetryGroup action, emitting one canonical representative per orbit.
 //
-// This is the production counterpart of core/orbit_enumerator_slow.h. It emits
-// EXACTLY the same canonical representatives (the lexicographic minimum of each
-// orbit, in column-reversed RREF) — the slow version is the correctness oracle
-// and both are checked against the same golden certificates — but reaches them
-// far faster via two ideas ported from rank_search/constraints_enumerator.h:
+// This is the production counterpart of
+// subspace_bounds/search/orbit_enumerator_slow.h. It emits EXACTLY the same
+// canonical representatives (the lexicographic minimum of each orbit, in
+// column-reversed RREF) — the slow version is the correctness oracle and both
+// are checked against the same golden certificates — but reaches them far
+// faster via two techniques:
 //
 //   1. Layered incremental construction. Orbit reps of dimension k are built by
 //      appending one new highest-pivot row to a kept rep of dimension k−1. The
@@ -19,13 +20,13 @@
 //      lex-min — matching the slow enumerator without an explicit lex check.
 //
 //   2. Meet-in-the-middle dedup (the square-root trick), identical in structure
-//      to core/orbit_map.h. For each kept rep c we store every Store-image
-//      RREF(store.Apply(store_elem, c)) in a hash set; a new candidate q is a
-//      duplicate iff some Query-image RREF(query.Apply(query_elem, q)) is
-//      already stored. A hit means query.Apply(query_elem, q) ≡
-//      store.Apply(store_elem, c), i.e. q ≡ query_elem⁻¹·store_elem·c lies in
-//      c's orbit. Coverage of Query⁻¹·Store over G (see core/symmetry.h) makes
-//      this find every orbit member.
+//      to subspace_bounds/search/orbit_map.h. For each kept rep c we store
+//      every Store-image RREF(store.Apply(store_elem, c)) in a hash set; a new
+//      candidate q is a duplicate iff some Query-image
+//      RREF(query.Apply(query_elem, q)) is already stored. A hit means
+//      query.Apply(query_elem, q) ≡ store.Apply(store_elem, c), i.e. q ≡
+//      query_elem⁻¹·store_elem·c lies in c's orbit. Coverage of Query⁻¹·Store
+//      over G (see core/symmetry.h) makes this find every orbit member.
 //
 // Determinism: candidates are visited SEQUENTIALLY (so first-seen = lex-min);
 // the only parallelism is inside Visit, over the group elements of a single
@@ -143,8 +144,7 @@ private:
 
   // Generate every child of `parent` (one larger dimension) that extends the
   // parent's column-reversed RREF, keeping those that are new orbit reps.
-  void ExpandNextLayer(const Constraints<kP, kNA> &parent,
-                       ShardedSet *visited,
+  void ExpandNextLayer(const Constraints<kP, kNA> &parent, ShardedSet *visited,
                        std::vector<Constraints<kP, kNA>> *layer) const {
     // Mark the parent's pivot columns; the highest is the bar the new row's
     // pivot must clear.
@@ -197,7 +197,7 @@ private:
   // result is a full-rank canonical key.
   template <class Apply>
   Constraints<kP, kNA> Image(Apply apply,
-                                 const Constraints<kP, kNA> &in) const {
+                             const Constraints<kP, kNA> &in) const {
     Constraints<kP, kNA> out;
     out.reserve(in.size());
     for (const Vec v : in) {
@@ -212,8 +212,7 @@ private:
   // order). Probes the Query-images against the stored Store-images (the
   // square-root trick, same hit equation as OrbitMap::Get); if none match, the
   // candidate opens a new orbit and we register all its Store-images.
-  bool Visit(const Constraints<kP, kNA> &candidate,
-             ShardedSet *visited) const {
+  bool Visit(const Constraints<kP, kNA> &candidate, ShardedSet *visited) const {
     const int query_size = group_->query.Size();
     std::atomic<bool> duplicate = false;
     tbb::parallel_for(

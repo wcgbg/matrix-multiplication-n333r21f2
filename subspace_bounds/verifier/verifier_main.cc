@@ -1,14 +1,15 @@
 // Verify a certificate produced by rank_lower_bound_main.
 //
 // Usage:
-//   bazel run --config=opt //subspace_bounds/verifier:verifier_main -- /abs/path/cert.pb.txt
+//   bazel run --config=opt //subspace_bounds/verifier:verifier_main --
+//   /abs/path/cert.pb.txt
 //
-// Reads a Certificate, re-checks every orbit's rank_lower_bound_proof against a
-// freshly built OrbitMap for the chosen problem's symmetry group, and logs the
-// proven lower bound for the unconstrained tensor. Backtracking proofs are
-// replayed from the single archive (cert.btp) next to the certificate. Any
-// failed check aborts via CHECK. Mirrors
-// proof_verifier/rank_lower_bound_verifier_main.cc.
+// Reads a Certificate and verifies each orbit's proof using a RankMap of
+// previously verified canonical representatives. Degenerate and backtracking
+// witnesses recover representatives directly through the symmetry actions.
+// Backtracking traces are replayed from the archive (cert.btp) next to the
+// certificate. Logs the proven bound for the unconstrained tensor; failed
+// checks abort via CHECK.
 
 #include <string>
 

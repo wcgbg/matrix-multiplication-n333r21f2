@@ -8,7 +8,7 @@
 // with kNA = N0·N1 and flat index ij = i·N1 + j. The rank-preserving A-side
 // symmetries (paper §3.1) are the sandwich X ↦ L·X·R (L ∈ GL_{N0}, R ∈ GL_{N1})
 // and, for the cubic format N0=N1=N2, the transpose X ↦ Xᵀ. The projective
-// group is G = ((GL_{N0} × GL_{N1}) ⋊ C₂) / 𝔽₂^* (the centre of GL(n,2) is
+// group is G = ((GL_{N0} × GL_{N1}) ⋊ C₂) / 𝔽₂^* (the center of GL(n,2) is
 // trivial).
 //
 // √|G| meet-in-the-middle split (core/symmetry.h):
@@ -17,7 +17,7 @@
 //   mult).
 // Query⁻¹·Store = {X ↦ L⁻¹·X·R} ∪ {X ↦ L⁻¹·Xᵀ·R} covers G, which is what the
 // orbit enumerator and OrbitMap::Get require. We use the *direct* action
-// X ↦ L·τ(X)·R (matching the source repo's TransformRestrictions); it ranges
+// X ↦ L·τ(X)·R; it ranges
 // over the same GL_{N0}×GL_{N1}⋊C₂ bi-action as the contragredient, hence the
 // same orbits.
 //
@@ -27,7 +27,7 @@
 // table lookups via F2Matrix. This file is a thin adapter — it keeps the
 // SymmetryGroupConcept surface and the compact Elem encodings (Store::Elem is
 // the uint16 R; QuerySet::Elem is {uint16 l, uint16 transpose}) that the
-// certificate witnesses serialise to, and converts Vec ↔ F2Matrix at the table
+// certificate witnesses serialize to, and converts Vec ↔ F2Matrix at the table
 // boundary.
 
 #include <cstdint>
@@ -41,7 +41,8 @@
 namespace matrix {
 
 template <int P, int N0, int N1, int N2> class SymmetryGroup {
-  static_assert(P == 2, "matrix::SymmetryGroup is the F_2 lookup-table group; odd primes use FpSymmetryGroup");
+  static_assert(P == 2, "matrix::SymmetryGroup is the F_2 lookup-table group; "
+                        "odd primes use FpSymmetryGroup");
   static_assert(N0 >= 1 && N1 >= 1 && N2 >= 1);
   static_assert(N0 <= 4 && N1 <= 4,
                 "the GL lookup-table approach caps N0, N1 ≤ 4");
@@ -66,7 +67,7 @@ private:
 
 public:
   // Store side: right-multiplication by GL(N1). The element IS the matrix R
-  // (its uint16 value), so it serialises straight into the certificate witness.
+  // (its uint16 value), so it serializes straight into the certificate witness.
   class StoreSet {
   public:
     using Elem = uint16_t;
@@ -76,6 +77,13 @@ public:
     int Size() const { return static_cast<int>(tables_.Gl1().size()); }
     Elem At(int j) const { return tables_.Gl1()[j].Data(); }
     Elem Identity() const { return tables_.Identity1().Data(); }
+    Elem DecodeChecked(uint32_t code) const {
+      CHECK_LT(code, (uint32_t{1} << (N1 * N1))) << "invalid store code";
+      const auto value = static_cast<Elem>(code);
+      CHECK_NE(tables_.Inverse1(F2Matrix<N1, N1>(value)).Data(), 0)
+          << "singular store witness";
+      return value;
+    }
     Vec Apply(Elem r, Vec v) const {
       return FromMat(tables_.Mult011(ToMat(v), F2Matrix<N1, N1>(r)));
     }
@@ -124,6 +132,14 @@ public:
     int Size() const { return static_cast<int>(elems_.size()); }
     Elem At(int i) const { return elems_[i]; }
     Elem Identity() const { return QueryElem{tables_.Identity0().Data(), 0}; }
+    Elem DecodeChecked(uint32_t code) const {
+      Elem e(code);
+      CHECK_LE(e.transpose, kCubic ? 1 : 0) << "invalid transpose witness";
+      CHECK_LT(e.l, (uint32_t{1} << (N0 * N0))) << "invalid query code";
+      CHECK_NE(tables_.Inverse0(F2Matrix<N0, N0>(e.l)).Data(), 0)
+          << "singular query witness";
+      return e;
+    }
 
     Vec Apply(Elem e, Vec v) const {
       F2Matrix<N0, N1> m = ToMat(v);

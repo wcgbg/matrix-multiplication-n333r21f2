@@ -76,7 +76,5 @@ tmp/
 log/
 
 
-# Regenerable subspace-bound tables (README.md)
-subspace_bounds/tables/
 # Local working notes, not part of the repository
 notes/

@@ -13,10 +13,9 @@ namespace {
 // ⟨2,2,2⟩ is the order-2 matrix-multiplication (Strassen) tensor:
 // T[i*2+j][j*2+k][k*2+i] = 1 for i,j,k in {0,1}, i.e. 8 nonzero cells.
 TEST(BuildMulTensorTest, Strassen222) {
-  EXPECT_EQ(
-      (TensorToSparseString<2, 4, 4, 4>(BuildMulTensor<2, 2, 2, 2>())),
-      "a0*b0*c0 + a0*b1*c2 + a1*b2*c0 + a1*b3*c2 + "
-      "a2*b0*c1 + a2*b1*c3 + a3*b2*c1 + a3*b3*c3");
+  EXPECT_EQ((TensorToSparseString<2, 4, 4, 4>(BuildMulTensor<2, 2, 2, 2>())),
+            "a0*b0*c0 + a0*b1*c2 + a1*b2*c0 + a1*b3*c2 + "
+            "a2*b0*c1 + a2*b1*c3 + a3*b2*c1 + a3*b3*c3");
 }
 
 // Non-cube ⟨2,2,3⟩: kNA=4, kNB=6, kNC=6; round-trips through the sparse string.

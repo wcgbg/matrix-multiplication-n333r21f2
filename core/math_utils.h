@@ -83,9 +83,8 @@ int GaussJordanEliminationF2(std::vector<GFVec<2, N>> *matrix) {
 
 template <int P, int N>
 int GaussJordanEliminationFq(std::vector<GFVec<P, N>> *matrix) {
-  static_assert(P != 2,
-                "GaussJordanEliminationFq is for odd primes; use "
-                "GaussJordanEliminationF2 for the F₂ BitVec hot path");
+  static_assert(P != 2, "GaussJordanEliminationFq is for odd primes; use "
+                        "GaussJordanEliminationF2 for the F₂ BitVec hot path");
   using Vec = GFVec<P, N>;
   using Field = GF<P>;
 

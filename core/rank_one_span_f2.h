@@ -115,9 +115,9 @@ template <std::size_t NBits> struct LinearBasis {
     if (top < 0) {
       return false;
     }
-    auto it = std::lower_bound(
-        rows.begin(), rows.end(), top,
-        [](const auto &row, int t) { return row.first > t; });
+    auto it =
+        std::lower_bound(rows.begin(), rows.end(), top,
+                         [](const auto &row, int t) { return row.first > t; });
     rows.insert(it, {top, std::move(r)});
     return true;
   }
@@ -201,14 +201,13 @@ bool ForEachSubspaceRREF(int dq, int k, const Cb &cb, int first_pivot = -1) {
 // at bit s·ρ_c + t.
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
 struct SliceSpanA {
-  int rb = 0, rc = 0;              // core dims: B/C flattening ranks
-  int rho = 0;                     // dim V (the A-flattening rank)
-  LinearBasis<NB * NC> v;          // span of the A-slices, core coordinates
+  int rb = 0, rc = 0;     // core dims: B/C flattening ranks
+  int rho = 0;            // dim V (the A-flattening rank)
+  LinearBasis<NB * NC> v; // span of the A-slices, core coordinates
 };
 
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
-SliceSpanA<P, NA, NB, NC>
-BuildSliceSpanA(const Tensor<P, NA, NB, NC> &tensor) {
+SliceSpanA<P, NA, NB, NC> BuildSliceSpanA(const Tensor<P, NA, NB, NC> &tensor) {
   static_assert(P == 2, "the family-search engine is F_2-only");
   const GF<P> zero = GF<P>::Zero();
 
@@ -270,13 +269,12 @@ BuildSliceSpanA(const Tensor<P, NA, NB, NC> &tensor) {
 // core rank-one matrices plus the number of candidate subspaces, saturating.
 // 0 when the exclusion is trivial (target_rank < ρ).
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
-uint64_t CostFromSpan(const SliceSpanA<P, NA, NB, NC> &span,
-                      int target_rank) {
+uint64_t CostFromSpan(const SliceSpanA<P, NA, NB, NC> &span, int target_rank) {
   if (target_rank < span.rho) {
     return 0;
   }
-  const uint64_t rank1_count = SatMul(SatPow2(span.rb) - 1,
-                                      SatPow2(span.rc) - 1);
+  const uint64_t rank1_count =
+      SatMul(SatPow2(span.rb) - 1, SatPow2(span.rc) - 1);
   const int dq = span.rb * span.rc - span.rho;
   return SatAdd(rank1_count, SubspaceCount2(dq, target_rank - span.rho));
 }
@@ -296,8 +294,8 @@ uint64_t CostFromSpan(const SliceSpanA<P, NA, NB, NC> &span,
 
 inline constexpr uint64_t kRankOneSpanV1CostThreshold = 100'000'000;
 // Family-search applicability guards (outside them: kOverBudget).
-inline constexpr int kMaxFamilyK = 5;       // max quotient dims handled
-inline constexpr int kMaxFamilyDq = 24;     // occupancy arrays are 2^dq entries
+inline constexpr int kMaxFamilyK = 5;   // max quotient dims handled
+inline constexpr int kMaxFamilyDq = 24; // occupancy arrays are 2^dq entries
 inline constexpr int kMaxFamilySideDim = 10;
 
 // Small fixed-capacity echelon basis over dq-bit keys (rows kept in strictly
@@ -429,8 +427,8 @@ inline void ExpandCosetKeys(const std::vector<uint64_t> &rows,
 // *scratch.
 template <std::size_t NBits>
 bool IsRankOneSpannedCandidate(const std::vector<uint64_t> &coset_keys,
-                               const RankOneBuckets<NBits> &rank_ones,
-                               int want, LinearBasis<NBits> *scratch) {
+                               const RankOneBuckets<NBits> &rank_ones, int want,
+                               LinearBasis<NBits> *scratch) {
   std::size_t count = 0;
   for (std::size_t i = 1; i < coset_keys.size(); ++i) {
     auto it = rank_ones.buckets.find(coset_keys[i]);
@@ -460,9 +458,8 @@ bool IsRankOneSpannedCandidate(const std::vector<uint64_t> &coset_keys,
 // (The caller has already applied the trivial target < ρ exclusion and the
 // budget check.)
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
-RankOneSpanResult
-EnumerateAllSubspaces(const SliceSpanA<P, NA, NB, NC> &span,
-                      int target_rank) {
+RankOneSpanResult EnumerateAllSubspaces(const SliceSpanA<P, NA, NB, NC> &span,
+                                        int target_rank) {
   const int rb = span.rb, rc = span.rc, rho = span.rho;
   const int dq = rb * rc - rho;
   const int e = std::min(target_rank - rho, dq);
@@ -491,8 +488,8 @@ EnumerateAllSubspaces(const SliceSpanA<P, NA, NB, NC> &span,
   std::vector<uint64_t> coset_keys;
   LinearBasis<NB * NC> scratch;
   for (int k = 1; k <= e; ++k) {
-    const bool found = ForEachSubspaceRREF(
-        dq, k, [&](const std::vector<uint64_t> &rows) {
+    const bool found =
+        ForEachSubspaceRREF(dq, k, [&](const std::vector<uint64_t> &rows) {
           ExpandCosetKeys(rows, &coset_keys);
           return IsRankOneSpannedCandidate(coset_keys, rank_ones, rho + k,
                                            &scratch);

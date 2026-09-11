@@ -1,0 +1,66 @@
+{
+  "q02_n333": {
+    "commands": [
+      "python3 run.py verify-cert q02_n333",
+      "python3 run.py verify-table q02_n333",
+      "python3 run.py profile q02_n333"
+    ],
+    "expected": {
+      "certified_bound": 20,
+      "covering_pairs": 213188689,
+      "jobs": 50830,
+      "nodes": 15658474,
+      "profiles": 0,
+      "subspaces": 8283458
+    },
+    "files": {
+      "certs/matrix/cert_matrix_q02_n333.btp": {
+        "bytes": 241123192,
+        "sha256": "2e351c9a39676e38551d20b445177fd5f34d986e1d778bb9fe3db65063c2a4ec"
+      },
+      "certs/matrix/cert_matrix_q02_n333.pb.txt": {
+        "bytes": 116349,
+        "sha256": "2564ad7cd15fa91077d6fcc7bf23ddb0592ede7b33280a3407471e77260bfb0c"
+      }
+    },
+    "proof_counts": {
+      "backtracking_proof": 207,
+      "degenerate_proof": 234,
+      "flatten_matrix_proof": 14,
+      "forced_product_proof": 14,
+      "rank_one_span_proof": 27
+    }
+  },
+  "q03_n233": {
+    "commands": [
+      "python3 run.py verify-cert q03_n233",
+      "python3 run.py verify-table q03_n233",
+      "python3 run.py profile q03_n233"
+    ],
+    "expected": {
+      "certified_bound": 14,
+      "covering_pairs": 969696,
+      "jobs": 3,
+      "nodes": 7024,
+      "profiles": 3,
+      "subspaces": 56632
+    },
+    "files": {
+      "certs/matrix/cert_matrix_q03_n233.btp": {
+        "bytes": 1080534,
+        "sha256": "ba974585ca1bf1aca3bc6cf22469688e988b87aee3955fd5135b5ff2fbcd5532"
+      },
+      "certs/matrix/cert_matrix_q03_n233.pb.txt": {
+        "bytes": 7703,
+        "sha256": "3c22b5243ecd95a7a8c3ae5eaa2e3db29d86bd86f9ea2e21247c0f42ca1d3ae5"
+      }
+    },
+    "proof_counts": {
+      "backtracking_proof": 4,
+      "degenerate_proof": 8,
+      "flatten_matrix_proof": 11,
+      "forced_product_proof": 2,
+      "rank_one_span_proof": 6
+    }
+  }
+}

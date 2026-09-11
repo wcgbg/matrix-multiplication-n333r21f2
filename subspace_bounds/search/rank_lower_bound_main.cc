@@ -8,15 +8,11 @@
 // Reads a Certificate, builds an OrbitMap for the chosen problem's symmetry
 // group, and runs ProcessOrbits. The result (with improved rank_lower_bound and
 // rank_lower_bound_proof fields) is written to --output_path, defaulting to a
-// "_updated" sibling of the input. Mirrors
-// rank_search/rank_lower_bound_computer_main.cc.
+// "_updated" sibling of the input.
 
 #include <filesystem>
 #include <limits>
-#include <sstream>
 #include <string>
-#include <utility>
-#include <vector>
 
 #include "gflags/gflags.h"
 #include "ng-log/logging.h"
@@ -57,20 +53,6 @@ DEFINE_uint64(rank1span_max_subspaces, 10'000'000,
               "skipped on an orbit when its up-front cost estimate exceeds "
               "this; 0 disables it. Prime fields only (the family search "
               "engine is F2-only; other primes use the exhaustive engine)");
-DEFINE_string(recompute_orbits, "",
-              "Comma-separated orbit `index` values to recompute from scratch: "
-              "their rank lower bounds and proofs are cleared, then only these "
-              "orbits are processed (within --dim_min/--dim_max) while every "
-              "other orbit keeps its bound and proof and only seeds the orbit "
-              "map; the archive slots of the listed orbits are rewritten. For "
-              "per-orbit reruns and ablations (e.g. with a technique disabled)");
-DEFINE_bool(regenerate_backtracking_proofs, false,
-            "Archive regeneration: re-derive only the backtracking traces of "
-            "orbits whose .btp entry is missing or does not match the "
-            "certificate's proof_size, at the recorded bound (target = lb, "
-            "never lb + 1); no other technique runs and no bound is searched "
-            "for. Rewrites proof_size; the bound itself changes only if the "
-            "search happens to prove more");
 
 namespace {
 
@@ -99,8 +81,7 @@ void ClearAllLowerBounds(pb::Certificate *certificate,
     rt.clear_rank_lower_bound();
     rt.clear_rank_lower_bound_proof();
   }
-  const std::string archive_path =
-      GetBacktrackingProofArchivePath(input_path);
+  const std::string archive_path = GetBacktrackingProofArchivePath(input_path);
   if (std::filesystem::exists(archive_path)) {
     std::filesystem::remove(archive_path);
   }
@@ -114,50 +95,14 @@ void ClearNonBasicLowerBounds(pb::Certificate *certificate) {
        *certificate->mutable_constrained_tensors()) {
     const pb::RankLowerBoundProof &proof = rt.rank_lower_bound_proof();
     if (!proof.has_flatten_matrix_proof() &&
-        !proof.has_forced_product_proof() &&
-        !proof.has_rank_one_span_proof()) {
+        !proof.has_forced_product_proof() && !proof.has_rank_one_span_proof()) {
       rt.set_rank_lower_bound(0);
       rt.clear_rank_lower_bound_proof();
     }
   }
 }
 
-// Comma-separated integers.
-std::vector<int> ParseIntList(const std::string &csv) {
-  std::vector<int> values;
-  std::stringstream ss(csv);
-  std::string item;
-  while (std::getline(ss, item, ',')) {
-    values.push_back(std::stoi(item));
-  }
-  return values;
-}
-
-// --recompute_orbits: the listed orbits lose their bound and proof; every
-// listed index must exist.
-void ClearOrbitsForRecompute(pb::Certificate *certificate,
-                             const std::vector<int> &indices) {
-  for (int index : indices) {
-    bool found = false;
-    for (pb::ConstrainedTensor &rt :
-         *certificate->mutable_constrained_tensors()) {
-      if (static_cast<int>(rt.index()) == index) {
-        LOG(INFO) << "Recomputing orbit index=" << index << " from scratch"
-                  << " (previous bound "
-                  << (rt.has_rank_lower_bound()
-                          ? std::to_string(rt.rank_lower_bound())
-                          : std::string("none"))
-                  << ")";
-        rt.clear_rank_lower_bound();
-        rt.clear_rank_lower_bound_proof();
-        found = true;
-      }
-    }
-    CHECK(found) << "--recompute_orbits: no orbit with index " << index;
-  }
-}
-
-ProcessOptions OptionsFromFlags(std::vector<int> only_orbits) {
+ProcessOptions OptionsFromFlags() {
   return {
       .basic_method = FLAGS_basic_method,
       .degenerate_method = FLAGS_degenerate_method,
@@ -168,8 +113,6 @@ ProcessOptions OptionsFromFlags(std::vector<int> only_orbits) {
       .forced_product_max_iterations_log2 =
           FLAGS_forced_product_max_iterations_log2,
       .rank1span_max_subspaces = FLAGS_rank1span_max_subspaces,
-      .regenerate_backtracking_proofs = FLAGS_regenerate_backtracking_proofs,
-      .only_orbits = std::move(only_orbits),
   };
 }
 
@@ -203,19 +146,13 @@ int main(int argc, char **argv) {
   if (FLAGS_ignore_non_basic_rank_lower_bound) {
     ClearNonBasicLowerBounds(&certificate);
   }
-  std::vector<int> recompute_orbits;
-  if (!FLAGS_recompute_orbits.empty()) {
-    recompute_orbits = ParseIntList(FLAGS_recompute_orbits);
-    ClearOrbitsForRecompute(&certificate, recompute_orbits);
-  }
 
   std::string output_path = FLAGS_output_path;
   if (output_path.empty()) {
     output_path = path; // overwrite the input
   }
 
-  ProcessOrbits<Problem>(OptionsFromFlags(recompute_orbits), output_path,
-                         &certificate);
+  ProcessOrbits<Problem>(OptionsFromFlags(), output_path, &certificate);
   LogUnconstrainedBound(certificate);
 
   LOG(INFO) << "Done. Wrote " << output_path;

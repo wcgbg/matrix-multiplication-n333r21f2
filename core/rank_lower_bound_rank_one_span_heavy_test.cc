@@ -23,15 +23,14 @@
 
 namespace {
 
-Tensor<2, 9, 9, 9> N333ConstrainedTensor(
-    const std::vector<uint16_t> &words) {
+Tensor<2, 9, 9, 9> N333ConstrainedTensor(const std::vector<uint16_t> &words) {
   using Problem = matrix::Problem<2, 3, 3, 3>;
   Constraints<2, 9> constraints;
   for (uint16_t w : words) {
     constraints.push_back(GFVec<2, 9>{static_cast<BitVec<9>>(w)});
   }
   return ApplyConstraintsToTensor<2, 9, 9, 9>(constraints,
-                                                 Problem::MakeTensor());
+                                              Problem::MakeTensor());
 }
 
 constexpr uint64_t kBudget = 20'000'000'000'000;
@@ -43,7 +42,7 @@ RankOneSpanResult FamilyExcludeAxis1(const std::vector<uint16_t> &words,
   const auto t1 = CyclicTranspose<2, 9, 9, 9>(t);
   const auto span = BuildSliceSpanA<2, 9, 9, 9>(t1);
   return RankOneSpanFamilySearch<2, 9, 9, 9>(span, target, kBudget, ops,
-                                                /*parallel=*/true);
+                                             /*parallel=*/true);
 }
 
 TEST(FamilySearchHeavyTest, N333Orbit36ExcludesRank13) {
@@ -105,17 +104,16 @@ TEST_P(FamilySearchK5HeavyTest, ExcludesRank14) {
 
 INSTANTIATE_TEST_SUITE_P(
     N333Ub15Orbits, FamilySearchK5HeavyTest,
-    testing::Values(
-        K5Orbit{33, {0x1, 0x2, 0x8, 0x14, 0x44, 0xA0}},
-        K5Orbit{45, {0x1, 0x2, 0x8, 0x44, 0xA0, 0x100}},
-        K5Orbit{47, {0x1, 0x2, 0x8, 0x44, 0xA0, 0x130}},
-        K5Orbit{57, {0x1, 0x2, 0xC, 0x60, 0x84, 0x110}},
-        K5Orbit{63, {0x1, 0xA, 0x10, 0x44, 0xA0, 0x100}},
-        K5Orbit{68, {0x1, 0xA, 0x10, 0x44, 0xA4, 0x120}},
-        K5Orbit{79, {0x1, 0xA, 0x14, 0x60, 0xA0, 0x102}},
-        K5Orbit{82, {0x1, 0xA, 0x14, 0x60, 0xA0, 0x124}},
-        K5Orbit{83, {0x1, 0xA, 0x20, 0x44, 0x90, 0x112}},
-        K5Orbit{84, {0x1, 0xA, 0x20, 0x54, 0x80, 0x102}}),
+    testing::Values(K5Orbit{33, {0x1, 0x2, 0x8, 0x14, 0x44, 0xA0}},
+                    K5Orbit{45, {0x1, 0x2, 0x8, 0x44, 0xA0, 0x100}},
+                    K5Orbit{47, {0x1, 0x2, 0x8, 0x44, 0xA0, 0x130}},
+                    K5Orbit{57, {0x1, 0x2, 0xC, 0x60, 0x84, 0x110}},
+                    K5Orbit{63, {0x1, 0xA, 0x10, 0x44, 0xA0, 0x100}},
+                    K5Orbit{68, {0x1, 0xA, 0x10, 0x44, 0xA4, 0x120}},
+                    K5Orbit{79, {0x1, 0xA, 0x14, 0x60, 0xA0, 0x102}},
+                    K5Orbit{82, {0x1, 0xA, 0x14, 0x60, 0xA0, 0x124}},
+                    K5Orbit{83, {0x1, 0xA, 0x20, 0x44, 0x90, 0x112}},
+                    K5Orbit{84, {0x1, 0xA, 0x20, 0x54, 0x80, 0x102}}),
     [](const testing::TestParamInfo<K5Orbit> &info) {
       return "Orbit" + std::to_string(info.param.index);
     });

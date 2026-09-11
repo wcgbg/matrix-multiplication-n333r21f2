@@ -2,16 +2,15 @@
 // constrained tensor in a certificate produced by orbit_enumerator_main.
 //
 // Usage:
-//   bazel run --config=opt //subspace_bounds/upper_bound:rank_upper_bound_main --
-//   /abs/path/orbits.pb.txt
+//   bazel run --config=opt //subspace_bounds/upper_bound:rank_upper_bound_main
+//   -- /abs/path/orbits.pb.txt
 //
 // Reads a Certificate, reconstructs each ConstrainedTensor's 3-tensor (the
 // chosen problem's base tensor with the orbit's constraints applied), and runs
-// RankUpperBound (subspace_bounds/upper_bound/rank_upper_bound.h). The smallest rank found and
-// its verified decomposition string are written back into the tensor's
-// rank_upper_bound and rank_upper_bound_proof fields. The result is written to
-// --output_path, defaulting to overwriting the input. Mirrors
-// rank_lower_bound_main.cc.
+// RankUpperBound (subspace_bounds/upper_bound/rank_upper_bound.h). The smallest
+// rank found and its verified decomposition string are written back into the
+// tensor's rank_upper_bound and rank_upper_bound_proof fields. The result is
+// written to --output_path, defaulting to overwriting the input.
 
 #include <atomic>
 #include <cstddef>

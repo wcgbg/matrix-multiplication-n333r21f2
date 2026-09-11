@@ -5,13 +5,11 @@
 // The "flattening" of a 3-tensor T along its A-axis is the NA × (NB·NC) matrix
 // whose row i is the (flattened) bc-slice T[i]. Its rank over 𝔽_q is a lower
 // bound on the tensor rank R(T), because a rank-r decomposition of T gives a
-// rank-r factorisation of every flattening. We take the best of the three
+// rank-r factorization of every flattening. We take the best of the three
 // cyclic positions (flatten along A, B, then C).
 //
-// Split out of the matrix-mult code's rank_lower_bound_basic_technics.h: there
-// the tensor axes had composite dimensions (n0·n1, n1·n2, n2·n0); here they are
-// the plain problem dimensions (NA, NB, NC). CyclicTranspose rotates the three
-// axes so the single FlattenTensorA covers all three positions.
+// CyclicTranspose rotates the (NA, NB, NC) axes so FlattenTensorA covers
+// all three positions.
 
 #include <algorithm>
 #include <cstddef>
@@ -21,8 +19,7 @@
 
 // Rotate the three tensor axes: result[j][k][i] = tensor[i][j][k].
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
-Tensor<P, NB, NC, NA>
-CyclicTranspose(const Tensor<P, NA, NB, NC> &tensor) {
+Tensor<P, NB, NC, NA> CyclicTranspose(const Tensor<P, NA, NB, NC> &tensor) {
   Tensor<P, NB, NC, NA> result = {};
   for (std::size_t i = 0; i < NA; ++i) {
     for (std::size_t j = 0; j < NB; ++j) {
@@ -52,7 +49,7 @@ DynamicMatrix<P> FlattenTensorA(const Tensor<P, NA, NB, NC> &tensor) {
 
 // Largest flattening rank over the three cyclic positions. `target_rank` lets
 // the caller short-circuit: as soon as one position already meets the target we
-// return it without computing the others. Mirrors RankLowerBoundFlattenMatrix.
+// return it without computing the others.
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
 int RankLowerBoundFlatten(const Tensor<P, NA, NB, NC> &tensor,
                           int target_rank = std::numeric_limits<int>::max()) {

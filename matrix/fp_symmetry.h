@@ -2,9 +2,9 @@
 
 // A-side symmetry group for ⟨N0, N1, N2⟩ matrix multiplication over a prime
 // field 𝔽_P with P odd (the 𝔽₂ case keeps its lookup-table implementation in
-// symmetry.h; this file is its arithmetic counterpart for P ≥ 3).
+// matrix/f2_symmetry.h; this file computes the actions arithmetically).
 //
-// Same group and the same √|G| split as symmetry.h:
+// Same group and the same √|G| split as matrix/f2_symmetry.h:
 //   Store := { X ↦ X·R       : R ∈ GL_{N1}(𝔽_P) }
 //   Query := { X ↦ L·τᵗ(X)   : L ∈ GL_{N0}(𝔽_P), t ∈ {0, 1 iff cubic} }
 // so Query⁻¹·Store = {X ↦ L⁻¹·τᵗ(X)·R} covers (GL_{N0} × GL_{N1}) ⋊ C₂, the
@@ -12,11 +12,11 @@
 // redundantly: X ↦ λX acts trivially on subspaces).
 //
 // A constraint is an N0×N1 matrix of base-field digits (flat index
-// ij = i·N1 + j, the framework's GFVec coordinate order). Group elements are
-// encoded as the base-P digit expansion of the square matrix (row-major), so
-// an element IS its matrix and serialises into the certificate's fixed32
-// witness fields; inverses are precomputed per element. The products are
-// computed directly (no lookup tables): for the intended sizes (P = 3,
+// ij = i·N1 + j, the framework's GFVec coordinate order). Store elements encode
+// the right matrix in row-major base-P digits. Query elements pack the left
+// matrix code with the transpose flag in bit 31. These values serialize into
+// the certificate's fixed32 witness fields; matrix inverses are precomputed.
+// Products are computed directly: for the intended sizes (P = 3,
 // N0, N1 ≤ 3) that is at most 27 multiplications per action.
 
 #include <array>
@@ -29,9 +29,11 @@
 namespace matrix {
 
 template <int P, int N0, int N1, int N2> class FpSymmetryGroup {
-  static_assert(P >= 3 && P < 256, "FpSymmetryGroup is for odd primes; 𝔽₂ uses SymmetryGroup");
+  static_assert(P >= 3 && P < 256,
+                "FpSymmetryGroup is for odd primes; 𝔽₂ uses SymmetryGroup");
   static_assert(N0 >= 1 && N1 >= 1 && N2 >= 1);
-  static_assert(IntPow(P, N0 * N0) <= (1 << 24) && IntPow(P, N1 * N1) <= (1 << 24),
+  static_assert(IntPow(P, N0 *N0) <= (1 << 24) &&
+                    IntPow(P, N1 *N1) <= (1 << 24),
                 "GL enumeration by matrix code caps P^(n^2) at 2^24");
 
 public:
@@ -41,7 +43,8 @@ public:
   using F = GF<P>;
   using Code = uint32_t; // base-P digits of a square matrix, row-major
 
-  template <int R, int C> using Mat = std::array<F, static_cast<std::size_t>(R * C)>;
+  template <int R, int C>
+  using Mat = std::array<F, static_cast<std::size_t>(R *C)>;
 
   template <int N> static Code Encode(const Mat<N, N> &m) {
     Code code = 0;
@@ -77,7 +80,8 @@ public:
   template <int N> static Mat<N, N> IdentityMat() {
     Mat<N, N> m;
     m.fill(F::Zero());
-    for (int i = 0; i < N; ++i) m[i * N + i] = F::One();
+    for (int i = 0; i < N; ++i)
+      m[i * N + i] = F::One();
     return m;
   }
 
@@ -87,9 +91,13 @@ public:
     for (int col = 0; col < N; ++col) {
       int piv = -1;
       for (int r = col; r < N; ++r) {
-        if (a[r * N + col].value != 0) { piv = r; break; }
+        if (a[r * N + col].value != 0) {
+          piv = r;
+          break;
+        }
       }
-      if (piv < 0) return false;
+      if (piv < 0)
+        return false;
       if (piv != col) {
         for (int j = 0; j < N; ++j) {
           std::swap(a[piv * N + j], a[col * N + j]);
@@ -102,7 +110,8 @@ public:
         inv[col * N + j] = F::Mul(inv[col * N + j], s);
       }
       for (int r = 0; r < N; ++r) {
-        if (r == col || a[r * N + col].value == 0) continue;
+        if (r == col || a[r * N + col].value == 0)
+          continue;
         const F f = a[r * N + col];
         for (int j = 0; j < N; ++j) {
           a[r * N + j] = F::Sub(a[r * N + j], F::Mul(f, a[col * N + j]));
@@ -116,19 +125,22 @@ public:
 
   static Mat<N0, N1> ToMat(const Vec &v) {
     Mat<N0, N1> m;
-    for (int i = 0; i < kNA; ++i) m[i] = v[i];
+    for (int i = 0; i < kNA; ++i)
+      m[i] = v[i];
     return m;
   }
   static Vec FromMat(const Mat<N0, N1> &m) {
     Vec v{};
-    for (int i = 0; i < kNA; ++i) v.Set(i, m[i]);
+    for (int i = 0; i < kNA; ++i)
+      v.Set(i, m[i]);
     return v;
   }
   static Mat<N0, N1> Transpose(const Mat<N0, N1> &m) {
     static_assert(N0 == N1, "transpose as a constraint map needs N0 == N1");
     Mat<N0, N1> t;
     for (int i = 0; i < N0; ++i) {
-      for (int j = 0; j < N1; ++j) t[j * N1 + i] = m[i * N1 + j];
+      for (int j = 0; j < N1; ++j)
+        t[j * N1 + i] = m[i * N1 + j];
     }
     return t;
   }
@@ -157,6 +169,11 @@ public:
     int Size() const { return static_cast<int>(gl_.codes.size()); }
     Elem At(int j) const { return gl_.codes[j]; }
     Elem Identity() const { return Encode<N1>(IdentityMat<N1>()); }
+    Elem DecodeChecked(uint32_t code) const {
+      CHECK_LT(code, gl_.inverse.size()) << "invalid store code";
+      CHECK_NE(gl_.inverse[code], 0u) << "singular store witness";
+      return code;
+    }
     Vec Apply(Elem r, Vec v) const {
       return FromMat(Mul<N0, N1, N1>(ToMat(v), Decode<N1>(r)));
     }
@@ -179,7 +196,9 @@ public:
         : l(l_value), transpose(transpose_flag) {}
     constexpr explicit QueryElem(uint32_t packed)
         : l(packed & 0x7FFFFFFFu), transpose(packed >> 31) {}
-    constexpr explicit operator uint32_t() const { return l | (transpose << 31); }
+    constexpr explicit operator uint32_t() const {
+      return l | (transpose << 31);
+    }
   };
 
   class QuerySet {
@@ -188,23 +207,35 @@ public:
     explicit QuerySet(const GlTable<N0> &gl) : gl_(gl) {
       const int t_count = kCubic ? 2 : 1;
       for (int t = 0; t < t_count; ++t) {
-        for (Code c : gl_.codes) elems_.push_back(QueryElem{c, static_cast<uint32_t>(t)});
+        for (Code c : gl_.codes)
+          elems_.push_back(QueryElem{c, static_cast<uint32_t>(t)});
       }
     }
     int Size() const { return static_cast<int>(elems_.size()); }
     Elem At(int i) const { return elems_[i]; }
-    Elem Identity() const { return QueryElem{Encode<N0>(IdentityMat<N0>()), 0}; }
+    Elem Identity() const {
+      return QueryElem{Encode<N0>(IdentityMat<N0>()), 0};
+    }
+    Elem DecodeChecked(uint32_t code) const {
+      Elem e(code);
+      CHECK_LE(e.transpose, kCubic ? 1u : 0u) << "invalid transpose witness";
+      CHECK_LT(e.l, gl_.inverse.size()) << "invalid query code";
+      CHECK_NE(gl_.inverse[e.l], 0u) << "singular query witness";
+      return e;
+    }
     Vec Apply(Elem e, Vec v) const {
       Mat<N0, N1> m = ToMat(v);
       if constexpr (kCubic) {
-        if (e.transpose) m = Transpose(m);
+        if (e.transpose)
+          m = Transpose(m);
       }
       return FromMat(Mul<N0, N0, N1>(Decode<N0>(e.l), m));
     }
     Vec ApplyInverse(Elem e, Vec v) const {
       Mat<N0, N1> w = Mul<N0, N0, N1>(Decode<N0>(gl_.inverse[e.l]), ToMat(v));
       if constexpr (kCubic) {
-        if (e.transpose) w = Transpose(w);
+        if (e.transpose)
+          w = Transpose(w);
       }
       return FromMat(w);
     }

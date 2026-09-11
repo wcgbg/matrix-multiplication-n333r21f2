@@ -40,7 +40,8 @@ TEST(ProtoIoTest, BinaryRoundTrip) { ExpectRoundTrip("a.pb"); }
 // Reading a real gzipped golden must yield the same message as its plaintext
 // sibling.
 TEST(ProtoIoTest, GzipTextGoldenMatchesPlain) {
-  const std::string dir = "subspace_bounds/search/testdata/orbit_enumerator/matrix_q02_n222";
+  const std::string dir =
+      "subspace_bounds/search/testdata/orbit_enumerator/matrix_q02_n222";
   const auto plain = ReadProtoFromFile<pb::Certificate>(dir + ".pb.txt");
   const auto gzipped = ReadProtoFromFile<pb::Certificate>(dir + ".pb.txt.gz");
 

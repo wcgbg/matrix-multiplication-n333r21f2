@@ -2,7 +2,7 @@
 // forced-product proof of the small cached certificates on its recorded cyclic
 // position with the verifier's default arguments (mirroring
 // VerifyForcedProductProof) and pin the exact value. The values were captured
-// at commit 4378bca6a; a different value means the technique's behaviour
+// at commit 4378bca6a; a different value means the technique's behavior
 // changed, which requires re-verifying every certificate.
 
 #include "core/rank_lower_bound_forced_product.h"
@@ -62,13 +62,12 @@ void CheckCertificate(const std::string &path,
       continue;
     }
     const int computed = RecomputeForcedProduct<Problem>(rt);
-    LOG(INFO) << path << " orbit " << rt.index() << " projection "
-              << rt.rank_lower_bound_proof()
-                     .forced_product_proof()
-                     .projection_type()
-              << ": forced product = " << computed;
-    EXPECT_GE(computed, rt.rank_lower_bound()) << path << " orbit "
-                                               << rt.index();
+    LOG(INFO)
+        << path << " orbit " << rt.index() << " projection "
+        << rt.rank_lower_bound_proof().forced_product_proof().projection_type()
+        << ": forced product = " << computed;
+    EXPECT_GE(computed, rt.rank_lower_bound())
+        << path << " orbit " << rt.index();
     bool found = false;
     for (const ForcedProductGolden &g : goldens) {
       if (g.index == static_cast<int>(rt.index())) {

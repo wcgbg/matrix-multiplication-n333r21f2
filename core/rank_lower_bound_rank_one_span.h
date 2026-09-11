@@ -5,7 +5,8 @@
 // Classical characterization: for T ∈ 𝔽^a ⊗ 𝔽^b ⊗ 𝔽^c, let V be the span of
 // the a A-slices, each read as a matrix in 𝔽^{b×c}. Then
 //
-//   rank(T) = min{ dim U : V ⊆ U ⊆ 𝔽^{b×c}, U spanned by matrices of rank ≤ 1 }.
+//   rank(T) = min{ dim U : V ⊆ U ⊆ 𝔽^{b×c}, U spanned by matrices of rank ≤ 1
+//   }.
 //
 // (≤: the slices of Σ u_i ⊗ v_i ⊗ w_i lie in span{v_i w_iᵀ}. ≥: pick a basis
 // of rank-one matrices R_1..R_d of U, express slice i as Σ_s λ_{is} R_s, and
@@ -47,9 +48,9 @@
 #include <tuple>
 #include <utility>
 
-#include "core/rank_lower_bound_flatten.h" // CyclicTranspose
+#include "core/rank_lower_bound_flatten.h"          // CyclicTranspose
 #include "core/rank_lower_bound_rank_one_span_fp.h" // the P ≠ 2 engine
-#include "core/rank_one_span_common.h" // RankOneSpanResult
+#include "core/rank_one_span_common.h"              // RankOneSpanResult
 #include "core/rank_one_span_f2.h"
 #include "core/rank_one_span_family_search.h"
 #include "core/tensor.h"
@@ -69,41 +70,41 @@
 // the verdict is unaffected, but op counts and the exact over-budget cutoff
 // become timing dependent, so the verifier keeps the default false).
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
-RankOneSpanResult
-RankOneSpanExcludeA(const Tensor<P, NA, NB, NC> &tensor, int target_rank,
-                    uint64_t max_subspaces, bool parallel = false) {
+RankOneSpanResult RankOneSpanExcludeA(const Tensor<P, NA, NB, NC> &tensor,
+                                      int target_rank, uint64_t max_subspaces,
+                                      bool parallel = false) {
   if constexpr (P != 2) {
     // Prime fields other than 𝔽₂: the exhaustive engine only (no family
     // search), see core/rank_lower_bound_rank_one_span_fp.h.
     return RankOneSpanExcludeFpA<P, NA, NB, NC>(tensor, target_rank,
-                                                   max_subspaces, parallel);
+                                                max_subspaces, parallel);
   } else {
-  using namespace rank_one_span_internal;
+    using namespace rank_one_span_internal;
 
-  const SliceSpanA<P, NA, NB, NC> span =
-      BuildSliceSpanA<P, NA, NB, NC>(tensor);
-  // Any U ⊇ V has dim ≥ ρ, so a target below ρ is the (trivial) flattening
-  // bound. This also covers target_rank < 0.
-  if (target_rank < span.rho) {
-    return RankOneSpanResult::kExcluded;
-  }
-  const uint64_t v1_cost = CostFromSpan(span, target_rank);
-  if (v1_cost <= kRankOneSpanV1CostThreshold) {
-    if (v1_cost > max_subspaces) {
-      return RankOneSpanResult::kOverBudget;
+    const SliceSpanA<P, NA, NB, NC> span =
+        BuildSliceSpanA<P, NA, NB, NC>(tensor);
+    // Any U ⊇ V has dim ≥ ρ, so a target below ρ is the (trivial) flattening
+    // bound. This also covers target_rank < 0.
+    if (target_rank < span.rho) {
+      return RankOneSpanResult::kExcluded;
     }
-    return EnumerateAllSubspaces<P, NA, NB, NC>(span, target_rank);
-  }
-  uint64_t ops = 0;
-  const RankOneSpanResult result = RankOneSpanFamilySearch<P, NA, NB, NC>(
-      span, target_rank, max_subspaces, &ops, parallel);
-  if (result != RankOneSpanResult::kOverBudget) {
-    return result;
-  }
-  if (v1_cost <= max_subspaces) {
-    return EnumerateAllSubspaces<P, NA, NB, NC>(span, target_rank);
-  }
-  return RankOneSpanResult::kOverBudget;
+    const uint64_t v1_cost = CostFromSpan(span, target_rank);
+    if (v1_cost <= kRankOneSpanV1CostThreshold) {
+      if (v1_cost > max_subspaces) {
+        return RankOneSpanResult::kOverBudget;
+      }
+      return EnumerateAllSubspaces<P, NA, NB, NC>(span, target_rank);
+    }
+    uint64_t ops = 0;
+    const RankOneSpanResult result = RankOneSpanFamilySearch<P, NA, NB, NC>(
+        span, target_rank, max_subspaces, &ops, parallel);
+    if (result != RankOneSpanResult::kOverBudget) {
+      return result;
+    }
+    if (v1_cost <= max_subspaces) {
+      return EnumerateAllSubspaces<P, NA, NB, NC>(span, target_rank);
+    }
+    return RankOneSpanResult::kOverBudget;
   }
 }
 
@@ -168,13 +169,13 @@ RankOneSpanExclude(const Tensor<P, NA, NB, NC> &tensor, int target_rank,
     RankOneSpanResult result;
     if (info.axis == 0) {
       result = RankOneSpanExcludeA<P, NA, NB, NC>(tensor, target_rank,
-                                                     max_subspaces, parallel);
+                                                  max_subspaces, parallel);
     } else if (info.axis == 1) {
       result = RankOneSpanExcludeA<P, NB, NC, NA>(t1, target_rank,
-                                                     max_subspaces, parallel);
+                                                  max_subspaces, parallel);
     } else {
       result = RankOneSpanExcludeA<P, NC, NA, NB>(t2, target_rank,
-                                                     max_subspaces, parallel);
+                                                  max_subspaces, parallel);
     }
     if (result != RankOneSpanResult::kOverBudget) {
       return {result, info.axis};

@@ -79,15 +79,14 @@ TEST(RankOneSpanTest, MatMul222) {
 // (first factor restricted to a 3-dim subspace of the 3x3 matrices; the
 // backtracking DFS saturates at 11 on all three). Constraint words are the
 // certificate's canonical RREF rows, bit 3i+j = entry (i,j).
-Tensor<2, 9, 9, 9> N333ConstrainedTensor(
-    const std::vector<uint16_t> &words) {
+Tensor<2, 9, 9, 9> N333ConstrainedTensor(const std::vector<uint16_t> &words) {
   using Problem = matrix::Problem<2, 3, 3, 3>;
   Constraints<2, 9> constraints;
   for (uint16_t w : words) {
     constraints.push_back(GFVec<2, 9>{static_cast<BitVec<9>>(w)});
   }
   return ApplyConstraintsToTensor<2, 9, 9, 9>(constraints,
-                                                 Problem::MakeTensor());
+                                              Problem::MakeTensor());
 }
 
 TEST(RankOneSpanTest, N333Orbit24) {
@@ -129,7 +128,8 @@ int MaxLineFree(int k) {
         continue;
       }
       for (int b = a + 1; b <= n && ok; ++b) {
-        if (((sub >> (b - 1)) & 1) && (((a ^ b) > b) && ((sub >> ((a ^ b) - 1)) & 1))) {
+        if (((sub >> (b - 1)) & 1) &&
+            (((a ^ b) > b) && ((sub >> ((a ^ b) - 1)) & 1))) {
           ok = false;
         }
       }
@@ -205,8 +205,7 @@ TEST(FamilySearchTest, NeverExcludesConstructedRank) {
     Tensor<2, 4, 4, 4> t = {};
     const int r = 1 + static_cast<int>(rng() % 6);
     for (int i = 0; i < r; ++i) {
-      const uint32_t a = 1 + rng() % 15, b = 1 + rng() % 15,
-                     c = 1 + rng() % 15;
+      const uint32_t a = 1 + rng() % 15, b = 1 + rng() % 15, c = 1 + rng() % 15;
       for (int x = 0; x < 4; ++x) {
         for (int y = 0; y < 4; ++y) {
           for (int z = 0; z < 4; ++z) {
@@ -219,7 +218,7 @@ TEST(FamilySearchTest, NeverExcludesConstructedRank) {
     }
     const auto span = BuildSliceSpanA<2, 4, 4, 4>(t);
     if (r < span.rho) {
-      continue; // impossible; the construction cancelled below its flattening
+      continue; // impossible; the construction canceled below its flattening
     }
     uint64_t ops = 0;
     EXPECT_NE((RankOneSpanFamilySearch<2, 4, 4, 4>(span, r, kBig, &ops)),
@@ -271,9 +270,9 @@ TEST(FamilySearchTest, N333Orbit62ExcludesRank12) {
   const auto span = BuildSliceSpanA<2, 9, 9, 9>(t1);
   ASSERT_EQ(span.rho, 9);
   uint64_t ops = 0;
-  EXPECT_EQ((RankOneSpanFamilySearch<2, 9, 9, 9>(span, 12,
-                                                    1'000'000'000'000, &ops)),
-            RankOneSpanResult::kExcluded);
+  EXPECT_EQ(
+      (RankOneSpanFamilySearch<2, 9, 9, 9>(span, 12, 1'000'000'000'000, &ops)),
+      RankOneSpanResult::kExcluded);
   LOG(INFO) << "orbit 62 target 12: ops=" << ops;
 }
 
@@ -282,7 +281,7 @@ TEST(FamilySearchTest, N333Orbit62ExcludesRank12) {
 // Random 9x3x5 tensors: the family search's k = 5 case machinery must agree
 // with the exhaustive v1 enumeration wherever it decides. This is the shape
 // regime where line-heavy remainder witnesses occur (F = 7 families, quotient
-// 6..9), mirroring the Python design validation.
+// 6..9).
 // Random 9x3x5 instance number `trial` of the k = 5 test family: even trials
 // are planted (per-family limited distinct w's), odd trials uniform random.
 Tensor<2, 9, 3, 5> RandomK5Tensor(std::mt19937_64 &rng, int trial) {
@@ -334,10 +333,11 @@ TEST(FamilySearchK5Test, AgreesWithV1OnSmallRandom) {
       if (v1_cost > kRankOneSpanV1CostThreshold) {
         continue; // no affordable ground truth
       }
-      const RankOneSpanResult v1 = EnumerateAllSubspaces<2, 9, 3, 5>(span, target);
+      const RankOneSpanResult v1 =
+          EnumerateAllSubspaces<2, 9, 3, 5>(span, target);
       uint64_t ops = 0;
-      const RankOneSpanResult v2 = RankOneSpanFamilySearch<2, 9, 3, 5>(
-          span, target, kBig, &ops);
+      const RankOneSpanResult v2 =
+          RankOneSpanFamilySearch<2, 9, 3, 5>(span, target, kBig, &ops);
       if (v2 != RankOneSpanResult::kOverBudget) {
         EXPECT_EQ(v2, v1) << "trial " << trial << " target " << target
                           << " rho " << span.rho;
@@ -399,16 +399,15 @@ struct OpCountCase {
 void CheckOpCounts(const std::vector<OpCountCase> &cases) {
   using namespace rank_one_span_internal;
   for (const OpCountCase &c : cases) {
-    const auto t1 =
-        CyclicTranspose<2, 9, 9, 9>(N333ConstrainedTensor(c.words));
+    const auto t1 = CyclicTranspose<2, 9, 9, 9>(N333ConstrainedTensor(c.words));
     const auto span = BuildSliceSpanA<2, 9, 9, 9>(t1);
     uint64_t ops = 0;
-    const RankOneSpanResult result = RankOneSpanFamilySearch<2, 9, 9, 9>(
-        span, c.target, c.budget, &ops);
+    const RankOneSpanResult result =
+        RankOneSpanFamilySearch<2, 9, 9, 9>(span, c.target, c.budget, &ops);
     EXPECT_EQ(result, c.expected) << c.name;
     EXPECT_EQ(ops, c.expected_ops) << c.name;
-    LOG(INFO) << "golden " << c.name << ": result="
-              << static_cast<int>(result) << " ops=" << ops;
+    LOG(INFO) << "golden " << c.name << ": result=" << static_cast<int>(result)
+              << " ops=" << ops;
   }
 }
 
@@ -519,7 +518,7 @@ template <class Problem> void GoldenSoundnessSweep(const std::string &path) {
         ConstraintsFromBytes<P, static_cast<int>(NA)>(rt.constraints());
     const Tensor<P, NA, NB, NC> tensor =
         ApplyConstraintsToTensor<P, NA, NB, NC>(constraints,
-                                                   Problem::MakeTensor());
+                                                Problem::MakeTensor());
     const int ub = rt.rank_upper_bound();
     EXPECT_NE((RankOneSpanExclude<P, NA, NB, NC>(tensor, ub, kBudget).first),
               RankOneSpanResult::kExcluded)

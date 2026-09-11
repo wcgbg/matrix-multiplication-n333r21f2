@@ -1,9 +1,9 @@
 #pragma once
 
-// Replay-verifier for the Substitution-with-Backtracking proof. Port of the
-// matrix-mult proof_verifier/rank_lower_bound_backtracking_verifier.h.
+// Replay verifier for the Substitution-with-Backtracking proof.
 //
-// The prover (core/rank_lower_bound_backtracking.h) walks a deterministic DFS
+// The prover (subspace_bounds/search/rank_lower_bound_backtracking.h) walks a
+// deterministic DFS
 // over the "minimal" extra constraints of the base subspace, emitting one
 // BacktrackingProof record (in DFS pre-order) at each leaf where it reached the
 // target bound. This verifier rebuilds the identical minimal-constraint list
@@ -33,9 +33,9 @@
 // The verifier keeps one entry per orbit, unlike the prover's square-root
 // OrbitMap which materializes every Store-image.
 template <class Problem>
-using RankMap = boost::unordered_flat_map<
-    Constraints<Problem::kP, Problem::kNA>, int,
-    ConstraintsHash<Problem::kP, Problem::kNA>>;
+using RankMap =
+    boost::unordered_flat_map<Constraints<Problem::kP, Problem::kNA>, int,
+                              ConstraintsHash<Problem::kP, Problem::kNA>>;
 
 // Recover the canonical representative c of query q's orbit from the recorded
 // witness, using the OrbitMap hit equation
@@ -46,14 +46,15 @@ using RankMap = boost::unordered_flat_map<
 // so the image is full-rank; we still drop any leading zero rows of the
 // reversed RREF so the key matches the certificate's stored representatives.
 template <class Problem>
-Constraints<Problem::kP, Problem::kNA> CanonicalFromWitness(
-    const typename Problem::SymmetryGroup &group,
-    const Constraints<Problem::kP, Problem::kNA> &q,
-    typename Problem::SymmetryGroup::QuerySet::Elem query_elem,
-    typename Problem::SymmetryGroup::StoreSet::Elem store_elem) {
+Constraints<Problem::kP, Problem::kNA>
+CanonicalFromWitness(const typename Problem::SymmetryGroup &group,
+                     const Constraints<Problem::kP, Problem::kNA> &q,
+                     uint32_t query_code, uint32_t store_code) {
   constexpr int NA = Problem::kNA;
   constexpr int P = Problem::kP;
   using Vec = GFVec<P, NA>;
+  const auto query_elem = group.query.DecodeChecked(query_code);
+  const auto store_elem = group.store.DecodeChecked(store_code);
   Constraints<P, NA> image;
   image.reserve(q.size());
   for (const Vec v : q) {
@@ -91,7 +92,7 @@ private:
       : base_constraints_(constraints), rank_lower_bound_(rank_lower_bound),
         proof_(proof), group_(group), map_(map) {
     // Enumerate the same minimal constraints the prover does (see
-    // rank_lower_bound_backtracking.h for the F_q minimality predicate).
+    // subspace_bounds/search/rank_lower_bound_backtracking.h for minimality).
     static_assert(NA < 32, "Backtracking DFS path mask is uint32_t");
     const uint64_t num_candidates = IntPow(P, NA);
     std::vector<int> base_pivots;
@@ -149,10 +150,8 @@ private:
           << "backtracking mask selects entries outside the recorded path";
       CHECK_NE(mask & (uint32_t{1} << (proof_dfs_constraints_size - 1)), 0u)
           << "backtracking mask must select the newest path entry";
-      const auto query_elem =
-          static_cast<QueryElem>(proof_.query_elem_array[*proof_index]);
-      const auto store_elem =
-          static_cast<StoreElem>(proof_.store_elem_array[*proof_index]);
+      const auto query_elem = proof_.query_elem_array[*proof_index];
+      const auto store_elem = proof_.store_elem_array[*proof_index];
       Constraints<P, NA> extended = base_constraints_;
       for (int i = 0; i < static_cast<int>(dfs_constraints->size()); ++i) {
         if (mask & (uint32_t(1) << i)) {

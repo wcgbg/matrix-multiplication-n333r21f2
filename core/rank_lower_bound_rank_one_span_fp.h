@@ -97,7 +97,7 @@ template <std::size_t N> int TopNonzero(const FpRow<N> &r, int len) {
 // Fully reduced basis: each row's pivot is its highest nonzero digit, the
 // pivot entry is 1 and the pivot column is zero in every other row. The
 // residue of a vector (Reduce) therefore vanishes at every pivot position, so
-// the quotient core/V is coordinatised by the non-pivot positions.
+// the quotient core/V is coordinatized by the non-pivot positions.
 template <int P, std::size_t N> struct FpBasis {
   int len = 0;
   std::vector<std::pair<int, FpRow<N>>> rows; // (pivot, row)
@@ -221,7 +221,7 @@ uint64_t CostFromSpanFp(const SliceSpanFp<P, NA, NB, NC> &span,
   return SatAdd(rank1_count, SubspaceCountP<P>(dq, target_rank - span.rho));
 }
 
-// Base-P code of the projective normalisation (first nonzero digit 1) of the
+// Base-P code of the projective normalization (first nonzero digit 1) of the
 // residue's digits at the free positions.
 template <int P, std::size_t N>
 uint64_t QuotientKey(const FpRow<N> &resid, const std::vector<int> &free_pos) {
@@ -230,7 +230,7 @@ uint64_t QuotientKey(const FpRow<N> &resid, const std::vector<int> &free_pos) {
   for (int i = static_cast<int>(free_pos.size()) - 1; i >= 0; --i) {
     key = key * P + resid[free_pos[i]];
   }
-  // Normalise: find the first nonzero digit (lowest free index).
+  // Normalize: find the first nonzero digit (lowest free index).
   for (int i = 0; i < static_cast<int>(free_pos.size()); ++i) {
     if (resid[free_pos[i]]) {
       scale = InvP<P>(resid[free_pos[i]]);
@@ -381,8 +381,7 @@ inline RrefShapeFp RrefShapeFromPivots(uint32_t pivots, int dq, int k) {
 // Base-P key of Σ_i coef[i]·rows[i], digit dq − 1 most significant.
 template <int P>
 uint64_t KeyOfCombinationFp(const std::vector<int> &coef,
-                            const std::vector<std::vector<int>> &rows,
-                            int dq) {
+                            const std::vector<std::vector<int>> &rows, int dq) {
   uint64_t key = 0;
   for (int c = dq - 1; c >= 0; --c) {
     int acc = 0;
@@ -492,8 +491,8 @@ bool SweepPivotSetFp(uint32_t pivots, int k, int dq, int rho,
 
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
 RankOneSpanResult
-EnumerateAllSubspacesFp(const SliceSpanFp<P, NA, NB, NC> &span,
-                        int target_rank, bool parallel) {
+EnumerateAllSubspacesFp(const SliceSpanFp<P, NA, NB, NC> &span, int target_rank,
+                        bool parallel) {
   const int rb = span.rb, rc = span.rc, rho = span.rho;
   const int len = rb * rc;
   const int dq = len - rho;
@@ -551,9 +550,9 @@ EnumerateAllSubspacesFp(const SliceSpanFp<P, NA, NB, NC> &span,
 // rank(tensor) ≥ target_rank + 1; kOverBudget (cost above `max_subspaces`)
 // makes no claim. Deterministic verdict; `parallel` only spreads the sweep.
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
-RankOneSpanResult
-RankOneSpanExcludeFpA(const Tensor<P, NA, NB, NC> &tensor, int target_rank,
-                      uint64_t max_subspaces, bool parallel = false) {
+RankOneSpanResult RankOneSpanExcludeFpA(const Tensor<P, NA, NB, NC> &tensor,
+                                        int target_rank, uint64_t max_subspaces,
+                                        bool parallel = false) {
   using namespace rank_one_span_fp_internal;
   const auto span = BuildSliceSpanFp<P, NA, NB, NC>(tensor);
   if (target_rank < span.rho) {

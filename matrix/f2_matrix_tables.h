@@ -1,9 +1,8 @@
 #pragma once
 
 // All lookup tables the matrix-multiplication symmetry group needs, for one
-// constraint shape ⟨N0, N1⟩, over 𝔽₂. Replaces the former GLTablesF2<n> +
-// ConstraintTablesF2<N0,N1> pair. This is a plain class (no singleton):
-// SymmetryGroup holds one instance and lends it to its Query/Store sides.
+// constraint shape ⟨N0, N1⟩, over 𝔽₂. SymmetryGroup holds one instance
+// and lends it to its Query/Store sides.
 //
 // The tables are stored compactly (uint8/uint16 arrays indexed by a matrix's
 // raw uint16 data) and built once in the constructor using F2Matrix algebra

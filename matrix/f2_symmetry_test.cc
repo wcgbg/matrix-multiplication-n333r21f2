@@ -19,7 +19,7 @@ namespace matrix {
 namespace {
 
 // Identity acts trivially; every element is a bijection on functionals whose
-// ApplyInverse exactly inverts Apply (over 𝔽_2 the Store canonicalisation is a
+// ApplyInverse exactly inverts Apply (over 𝔽_2 the Store canonicalization is a
 // no-op, so the stored matrices satisfy M_inv · M = I).
 template <int N0, int N1, int N2> void CheckGroupF2() {
   constexpr int NA = N0 * N1;
@@ -34,7 +34,7 @@ template <int N0, int N1, int N2> void CheckGroupF2() {
     EXPECT_EQ(g.query.Apply(g.query.Identity(), make(v)), make(v));
   }
 
-  // Elem now carries the matrix data, not the index, so go through At(i).
+  // At(i) returns the encoded matrix/transformation for enumeration index i.
   for (int t = 0; t < g.store.Size(); ++t) {
     const auto store = g.store.At(t);
     std::set<BV> image;
@@ -83,17 +83,17 @@ TEST(SymmetryGroupTest, GroupSizes) {
     EXPECT_EQ(g.query.Size(), 336);
   }
   {
-    SymmetryGroup<2, 2, 2, 3> g; // non-cube
-    EXPECT_EQ(g.store.Size(), 6);   // GL(2,2)
-    EXPECT_EQ(g.query.Size(), 6);   // GL(2,2), no transpose
+    SymmetryGroup<2, 2, 2, 3> g;  // non-cube
+    EXPECT_EQ(g.store.Size(), 6); // GL(2,2)
+    EXPECT_EQ(g.query.Size(), 6); // GL(2,2), no transpose
   }
   {
-    SymmetryGroup<2, 2, 3, 4> g; // non-cube
+    SymmetryGroup<2, 2, 3, 4> g;    // non-cube
     EXPECT_EQ(g.store.Size(), 168); // GL(3,2)
     EXPECT_EQ(g.query.Size(), 6);   // GL(2,2)
   }
   {
-    SymmetryGroup<2, 3, 4, 4> g;   // non-cube
+    SymmetryGroup<2, 3, 4, 4> g;      // non-cube
     EXPECT_EQ(g.store.Size(), 20160); // GL(4,2)
     EXPECT_EQ(g.query.Size(), 168);   // GL(3,2)
   }
@@ -124,8 +124,7 @@ Constraints<P, NA> RandomConstraints(std::mt19937_64 &rng) {
 // invariant. Rotates the axes with CyclicTranspose so one FlattenTensorA covers
 // all three positions (non-cube safe).
 template <int P, int N0, int N1, int N2>
-std::array<int, 3>
-ThreeRanks(const Tensor<P, N0 * N1, N1 * N2, N2 * N0> &t) {
+std::array<int, 3> ThreeRanks(const Tensor<P, N0 * N1, N1 * N2, N2 * N0> &t) {
   constexpr int NA = N0 * N1, NB = N1 * N2, NC = N2 * N0;
   const auto t1 = CyclicTranspose<P, NA, NB, NC>(t);
   const auto t2 = CyclicTranspose<P, NB, NC, NA>(t1);
@@ -153,8 +152,7 @@ void CheckConstraintSymmetryInvariance(std::mt19937_64 &rng, int trials) {
 
   for (int trial = 0; trial < trials; ++trial) {
     const Constraints<P, NA> constraints = RandomConstraints<P, NA>(rng);
-    const Tn t0 =
-        ApplyConstraintsToTensor<P, NA, NB, NC>(constraints, tensor);
+    const Tn t0 = ApplyConstraintsToTensor<P, NA, NB, NC>(constraints, tensor);
     std::array<int, 3> r0 = ThreeRanks<P, N0, N1, N2>(t0);
     std::sort(r0.begin(), r0.end());
 

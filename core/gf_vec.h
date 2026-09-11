@@ -4,8 +4,8 @@
 //
 // Stored as std::array<GF<P>, N>: one GF value per element. Since
 // sizeof(GF<P>) == 1 and GF is trivially copyable, sizeof(GFVec<P, N>)
-// == N — byte-blob hashing (ConstraintsHash) and on-disk serialisation read
-// the buffer uniformly, identical to the legacy uint8_t-backed layout.
+// == N — byte-blob hashing (ConstraintsHash) and on-disk serialization read
+// the buffer as N consecutive bytes.
 //
 // For P == 2 the partial specialization below replaces the
 // std::array<GF, N> backing with a single bit-packed BitVec<N> (sizeof ==
@@ -29,8 +29,7 @@ template <int P, int N> struct GFVec {
 
   using Field = GF<P>;
 
-  // One GF value per element. Byte layout is identical to the legacy
-  // std::array<uint8_t, N> form because GF is layout-compatible with uint8_t.
+  // One GF value per element, with the byte layout of std::array<uint8_t, N>.
   std::array<Field, static_cast<std::size_t>(N)> data{};
 
   constexpr Field operator[](int i) const { return data[i]; }
@@ -214,8 +213,7 @@ static_assert(sizeof(GFVec<3, 8>) == 8);
 static_assert(sizeof(GFVec<5, 16>) == 16);
 
 // On-disk format invariant: the F₂ specialization is exactly one BitVec<N>,
-// so ConstraintsToBytes/FromBytes (which rely on sizeof(row)) match the
-// legacy bit-packed-integer layout.
+// so ConstraintsToBytes/FromBytes serialize one packed integer per row.
 static_assert(sizeof(GFVec<2, 4>) == sizeof(BitVec<4>));
 static_assert(sizeof(GFVec<2, 8>) == sizeof(BitVec<8>));
 static_assert(sizeof(GFVec<2, 9>) == sizeof(BitVec<9>));
@@ -227,8 +225,7 @@ static_assert(sizeof(GFVec<2, 33>) == sizeof(BitVec<33>));
 // Decode an integer in [0, q^N) into an GFVec, where q = P. The convention
 // matches operator<=> above: data[i] = (n / q^i) mod q, so iterating the
 // integer counter visits GFVecs in `<` order.
-template <int P, int N>
-constexpr GFVec<P, N> DecodeGFVec(uint64_t i) {
+template <int P, int N> constexpr GFVec<P, N> DecodeGFVec(uint64_t i) {
   if constexpr (P == 2) {
     return GFVec<2, N>{static_cast<BitVec<N>>(i)};
   } else {
@@ -243,8 +240,7 @@ constexpr GFVec<P, N> DecodeGFVec(uint64_t i) {
 }
 
 // Encode an GFVec to its integer in [0, q^N): Σ data[k] · q^k, where q = P.
-template <int P, int N>
-constexpr uint64_t EncodeGFVec(const GFVec<P, N> &v) {
+template <int P, int N> constexpr uint64_t EncodeGFVec(const GFVec<P, N> &v) {
   if constexpr (P == 2) {
     return static_cast<uint64_t>(v.data);
   } else {

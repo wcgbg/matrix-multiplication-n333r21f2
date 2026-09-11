@@ -1,6 +1,6 @@
 #pragma once
 
-// Orbit enumerator: classify all subspaces of (𝔽₂^NA)* under the SymmetryGroup
+// Orbit enumerator: classify all subspaces of (𝔽_P^NA)* under the SymmetryGroup
 // action.
 //
 // Reference/slow version: for every candidate constraint set it sweeps all
@@ -14,12 +14,8 @@
 // OrbitEnumerator is tested against, so it must emit exactly the same canonical
 // representatives.
 //
-// Faithful port of rank_search/constraints_enumerator_slow.h, generalised over
-// the SymmetryGroup concept: the matrix-mult code's (transpose, gl_left,
-// gl_right) transformations become group elements applied as
-// query.ApplyInverse(query_elem, store.Apply(store_elem, v)) (the
-// query_elem⁻¹·store_elem·v convention matching OrbitMap::Get's hit equation),
-// and the bit width is Problem::kNA instead of n0*n1.
+// Each action is query.ApplyInverse(query_elem, store.Apply(store_elem, v))
+// on a GFVec<Problem::kP, Problem::kNA> row.
 
 #include <algorithm>
 #include <cstdint>
@@ -69,8 +65,7 @@ public:
     SearchRec(constraints, &minimal);
 
     const Tensor<kP, kNA, kNB, kNC> tensor = Problem::MakeTensor();
-    std::vector<std::vector<Constraints<kP, kNA>>> dim_to_constraints(kNA +
-                                                                          1);
+    std::vector<std::vector<Constraints<kP, kNA>>> dim_to_constraints(kNA + 1);
     for (const auto &r : minimal) {
       dim_to_constraints.at(r.size()).push_back(r);
     }
@@ -102,8 +97,8 @@ public:
   }
 
 private:
-  using Set = boost::unordered_flat_set<Constraints<kP, kNA>,
-                                        ConstraintsHash<kP, kNA>>;
+  using Set =
+      boost::unordered_flat_set<Constraints<kP, kNA>, ConstraintsHash<kP, kNA>>;
 
   // DFS over strictly-increasing sequences of dual vectors. Each increasing
   // sequence is a distinct candidate set; Visit decides if it is the canonical
@@ -140,7 +135,7 @@ private:
   // query⁻¹·store so the swept set is Query⁻¹ · Store, the
   // same covering set OrbitMap::Get uses — see the file header.
   Constraints<kP, kNA> Transform(QueryElem query, StoreElem store,
-                                     const Constraints<kP, kNA> &in) const {
+                                 const Constraints<kP, kNA> &in) const {
     Constraints<kP, kNA> out;
     out.reserve(in.size());
     for (const Vec v : in) {
@@ -163,8 +158,7 @@ private:
       const QueryElem query = group_->query.At(i);
       for (int j = 0; j < store_size; ++j) {
         const StoreElem store = group_->store.At(j);
-        const Constraints<kP, kNA> image =
-            Transform(query, store, constraints);
+        const Constraints<kP, kNA> image = Transform(query, store, constraints);
         if (image.size() != constraints.size()) {
           return false; // linearly dependent candidate
         }

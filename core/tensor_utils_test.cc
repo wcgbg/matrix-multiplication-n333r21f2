@@ -21,8 +21,7 @@ TEST(TensorToSparseStringTest, MultipleTermsF2) {
   TensorF2<2, 2, 4> tensor{};
   tensor[0][1][3] = 1;
   tensor[1][0][2] = 1;
-  EXPECT_EQ((TensorToSparseString<2, 2, 2, 4>(tensor)),
-            "a0*b1*c3 + a1*b0*c2");
+  EXPECT_EQ((TensorToSparseString<2, 2, 2, 4>(tensor)), "a0*b1*c3 + a1*b0*c2");
 }
 
 TEST(TensorToSparseStringTest, CoefficientNotOne) {
@@ -89,16 +88,14 @@ TEST(SparseStringToTensorTest, MixedCoefficients) {
 TEST(SparseStringToTensorTest, ToleratesExtraWhitespace) {
   TensorF2<2, 2, 2> expected{};
   expected[1][0][1] = 1;
-  EXPECT_EQ((SparseStringToTensor<2, 2, 2, 2>("  a1 * b0 * c1  ")),
-            expected);
+  EXPECT_EQ((SparseStringToTensor<2, 2, 2, 2>("  a1 * b0 * c1  ")), expected);
 }
 
 TEST(SparseStringToTensorTest, NoSpacesAroundPlus) {
   TensorF2<2, 2, 2> expected{};
   expected[0][0][0] = 1;
   expected[1][1][1] = 1;
-  EXPECT_EQ((SparseStringToTensor<2, 2, 2, 2>("a0*b0*c0+a1*b1*c1")),
-            expected);
+  EXPECT_EQ((SparseStringToTensor<2, 2, 2, 2>("a0*b0*c0+a1*b1*c1")), expected);
 }
 
 // Round-trip: tensor -> string -> tensor should be the identity.

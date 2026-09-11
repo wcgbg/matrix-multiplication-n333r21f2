@@ -1,30 +1,27 @@
 #pragma once
 
-// Certificate verifier. Port of the matrix-mult
-// proof_verifier/rank_lower_bound_verifier.h, generalized over a Problem.
+// Certificate verifier for a Problem.
 //
-// VerifyRankLowerBound mirrors the DP driver (rank_lower_bound_computer.h): it
+// VerifyRankLowerBound follows the dimension order of the search DP: it
 // sweeps subspace dimensions from NA down to 0, and at each dimension (1)
 // checks every orbit's proof against a map holding only the already-verified,
 // strictly-larger dimensions, then (2) inserts that dimension's claimed bounds.
 // By induction the final empty-constraint orbit's bound is sound. The five
 // proof types are each re-checked independently:
 //   - flatten/forced product: recompute the technique on the constrained
-//   tensor;
+//     tensor;
 //   - rank-one-span: re-run the exhaustive exclusion on the recorded slicing
 //     axis at rank_lower_bound - 1 (core/rank_lower_bound_rank_one_span.h);
 //   - degenerate: map the one-larger subspace to its canonical representative
-//   via
-//     the recorded witness and look up its bound;
+//     via the recorded witness and look up its bound;
 //   - backtracking: replay the orbit's DFS trace, looked up by index in the
 //     single per-certificate archive (backtracking_verifier.h).
 //
 // Unlike the prover (which uses the square-root OrbitMap), the verifier keeps a
 // plain canonical→rank map — one entry per orbit, no Store-image expansion. The
-// certificate records the full (query_elem, store_elem) witness per step, so
-// the verifier maps a query straight to the orbit representative
-// (CanonicalFromWitness below), the same shape as the matrix verifier's
-// constraints_to_rank_lower_bound.
+// degenerate and backtracking proofs record (query_elem, store_elem) witnesses,
+// so CanonicalFromWitness maps a query directly to its orbit representative
+// using the checked element values.
 
 #include <format>
 #include <string>
@@ -57,8 +54,7 @@ void VerifyFlattenProof(const Tensor<P, NA, NB, NC> &tensor,
 }
 
 // ForcedProductProof: recompute the forced-product bound on the cyclic position
-// recorded in projection_type. Mirrors RankLowerBoundForcedProduct in the
-// computer.
+// recorded in projection_type.
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
 void VerifyForcedProductProof(
     const Tensor<P, NA, NB, NC> &tensor, int rank_lower_bound,
@@ -136,19 +132,16 @@ void VerifyDegenerateProof(
     const typename Problem::SymmetryGroup &group, const RankMap<Problem> &map) {
   constexpr int NA = Problem::kNA;
   constexpr int P = Problem::kP;
-  using QueryElem = typename Problem::SymmetryGroup::QuerySet::Elem;
-  using StoreElem = typename Problem::SymmetryGroup::StoreSet::Elem;
 
   Constraints<P, NA> extended = constraints;
-  extended.push_back(
-      DecodeGFVec<P, NA>(degenerate_proof.extra_constraint()));
+  CHECK_LT(degenerate_proof.extra_constraint(), IntPow(P, NA))
+      << "extra constraint code outside vector dimension";
+  extended.push_back(DecodeGFVec<P, NA>(degenerate_proof.extra_constraint()));
   CHECK((IsLinearIndependentRREF<P, NA>(extended)));
   CHECK_EQ(extended.size(), constraints.size() + 1);
 
-  const auto query_elem =
-      static_cast<QueryElem>(degenerate_proof.transformation().query_elem());
-  const auto store_elem =
-      static_cast<StoreElem>(degenerate_proof.transformation().store_elem());
+  const auto query_elem = degenerate_proof.transformation().query_elem();
+  const auto store_elem = degenerate_proof.transformation().store_elem();
   const Constraints<P, NA> canonical =
       CanonicalFromWitness<Problem>(group, extended, query_elem, store_elem);
   const auto it = map.find(canonical);
@@ -184,6 +177,12 @@ void VerifyOne(const pb::ConstrainedTensor &rt,
   const Constraints<P, NA> constraints =
       ConstraintsFromBytes<P, NA>(rt.constraints());
 
+  CHECK_LE(constraints.size(), static_cast<size_t>(NA));
+  Constraints<P, NA> rref = constraints;
+  CHECK_EQ((GaussJordanRREF<P, NA>(&rref)), constraints.size())
+      << "dependent certificate constraints";
+  CHECK(rref == constraints) << "certificate constraints are not in RREF";
+
   // A claimed positive bound must carry a proof; a 0 bound is vacuously true.
   const int rank_lower_bound =
       rt.has_rank_lower_bound() ? rt.rank_lower_bound() : 0;
@@ -194,31 +193,23 @@ void VerifyOne(const pb::ConstrainedTensor &rt,
     return;
   }
 
-  // Constraints must already be in canonical (column-reversed) RREF.
-  {
-    Constraints<P, NA> rref = constraints;
-    GaussJordanRREF<P, NA>(&rref);
-    CHECK(rref == constraints)
-        << "Orbit " << rt.index() << " constraints are not in RREF";
-  }
-
   if (proof.has_flatten_matrix_proof()) {
     const Tensor<P, NA, NB, NC> tensor =
         ApplyConstraintsToTensor<P, NA, NB, NC>(constraints,
-                                                   Problem::MakeTensor());
+                                                Problem::MakeTensor());
     VerifyFlattenProof<P, NA, NB, NC>(tensor, rank_lower_bound);
   } else if (proof.has_forced_product_proof()) {
     const Tensor<P, NA, NB, NC> tensor =
         ApplyConstraintsToTensor<P, NA, NB, NC>(constraints,
-                                                   Problem::MakeTensor());
+                                                Problem::MakeTensor());
     VerifyForcedProductProof<P, NA, NB, NC>(tensor, rank_lower_bound,
-                                               proof.forced_product_proof());
+                                            proof.forced_product_proof());
   } else if (proof.has_rank_one_span_proof()) {
     const Tensor<P, NA, NB, NC> tensor =
         ApplyConstraintsToTensor<P, NA, NB, NC>(constraints,
-                                                   Problem::MakeTensor());
+                                                Problem::MakeTensor());
     VerifyRankOneSpanProof<P, NA, NB, NC>(tensor, rank_lower_bound,
-                                             proof.rank_one_span_proof());
+                                          proof.rank_one_span_proof());
   } else if (proof.has_degenerate_proof()) {
     VerifyDegenerateProof<Problem>(constraints, rank_lower_bound,
                                    proof.degenerate_proof(), group, map);

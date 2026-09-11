@@ -69,8 +69,8 @@ void VerifyReconstruction(const FlipScheme &scheme,
   CHECK(rebuilt == tensor) << "decomposition does not reconstruct the tensor";
 }
 
-// One search path, mirroring f2/scheme_2024_main.cc's Search loop. Whenever a
-// smaller rank is reached, copies the current scheme into *best.
+// Follow one search path, copying the current scheme into *best whenever
+// a smaller rank is reached.
 inline void SearchPath(FlipScheme scheme, int64_t path_limit,
                        int max_steps_at_a_rank, std::mt19937_64 *rng,
                        FlipScheme *best) {

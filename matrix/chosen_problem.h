@@ -1,8 +1,7 @@
 #pragma once
 
 // Compile-time problem selection, shared by the prover, verifier, and table
-// binaries in subspace_bounds/. The profile enumerators select their problem
-// independently.
+// binaries in subspace_bounds/ and the profile enumerators.
 //
 // The problem is chosen at *build time* via preprocessor defines, NOT by
 // editing this file: pass the characteristic and the three matrix dimensions

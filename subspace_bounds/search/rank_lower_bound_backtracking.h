@@ -10,17 +10,12 @@
 // the target. The deepest chain that beats `known_rank_lower_bound + 1` proves
 // the improved bound.
 //
-// Almost-verbatim port of rank_search/rank_lower_bound_backtracking.h. The
-// changes are mechanical: n0·n1 → NA, StaticMatrixData → Vec, and the map
-// witness (transpose, gl_left, gl_right) → (query_elem, store_elem) from the
-// OrbitMap.
-//
 // The search records the compressed DFS trace into a BacktrackingProof
 // and returns it to the caller (which stores it in the per-certificate
 // BacktrackingProofArchive); it also reports the trace length in
 // pb::BacktrackingProof.proof_size. The witness payload per step is the
 // (query_elem, store_elem) pair returned by OrbitMap::Get, which
-// core/backtracking_verifier.h replays.
+// subspace_bounds/verifier/backtracking_verifier.h replays.
 
 #include <algorithm>
 #include <atomic>
@@ -70,9 +65,8 @@ private:
     QueryElem query_elem{};
     StoreElem store_elem{};
   };
-  using LocalMap =
-      boost::unordered_flat_map<Constraints<P, NA>, LocalMapValue,
-                                ConstraintsHash<P, NA>>;
+  using LocalMap = boost::unordered_flat_map<Constraints<P, NA>, LocalMapValue,
+                                             ConstraintsHash<P, NA>>;
 
   RankLowerBoundBacktracking(const Constraints<P, NA> &constraints,
                              const OrbitMap<Problem> &orbit_map,
@@ -80,8 +74,7 @@ private:
                              size_t max_map_size)
       : base_constraints_(constraints), orbit_map_(orbit_map),
         step_limit_(step_limit), max_map_size_(max_map_size) {
-    // Unlike the matrix-mult code we do not re-query the map for the base
-    // orbit's bound here: the caller already passes the best bound found by the
+    // The caller passes the base orbit's best bound found by the
     // flatten / forced-product / degenerate methods, and the base orbit is not
     // yet inserted into the OrbitMap during its own dimension's pass.
     known_rank_lower_bound_ = known_rank_lower_bound;
@@ -104,7 +97,6 @@ private:
     //
     // For 𝔽₂: minimal iff XOR-ing in any base constraint does not lower the
     // candidate. Equivalently, the candidate has 0 at every base pivot column.
-    // The XOR check is what the matrix-mult predecessor uses.
     //
     // For 𝔽_p (P>2): minimal iff the candidate has 0 at every base pivot.
     // Because base_constraints_ is in canonical RREF, each base vector has a
@@ -114,8 +106,8 @@ private:
     // the coset-min condition.
     static_assert(NA < 32, "Backtracking DFS path mask is uint32_t");
     // Enumerate q^NA = P^NA candidate row-vectors. For P = 2 the
-    // value is the bit-packed integer (legacy F₂ path); otherwise we decode
-    // the integer counter into an GFVec.
+    // value is the bit-packed integer; otherwise we decode the integer
+    // counter into a GFVec.
     const uint64_t num_candidates = IntPow(P, NA);
     std::vector<int> base_pivots;
     base_pivots.reserve(base_constraints_.size());

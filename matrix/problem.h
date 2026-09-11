@@ -20,8 +20,8 @@
 #include "core/constraints.h"
 #include "core/gf_vec.h" // for IntPow
 #include "core/tensor.h"
-#include "matrix/fp_symmetry.h"
 #include "matrix/f2_symmetry.h"
+#include "matrix/fp_symmetry.h"
 #include "matrix/tensor.h"
 
 namespace matrix {
@@ -54,7 +54,7 @@ template <int P, int N0, int N1, int N2> struct Problem {
   }
 
   // <family>_q<QQ>_n<N0><N1><N2>, e.g. matrix_q02_n333. All feasible formats
-  // have single-digit dimensions (mirroring the source repo's rmms_n333).
+  // have single-digit dimensions.
   static std::string Name() {
     return std::format("matrix_q{:02}_n{}{}{}", kQ, N0, N1, N2);
   }

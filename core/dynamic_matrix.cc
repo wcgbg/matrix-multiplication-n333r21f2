@@ -11,8 +11,8 @@ DynamicMatrix<P>::DynamicMatrix(int n0, int n1)
 template <int P> void DynamicMatrix<P>::ResizeRows(int n0) {
   n0_ = n0;
   data_.resize(n0 * n1_);
-  // Newly-added entries default-initialise to the field zero. std::vector's
-  // `resize(new_size)` value-initialises trailing GF<P> elements (value = 0
+  // Newly-added entries default-initialize to the field zero. std::vector's
+  // `resize(new_size)` value-initializes trailing GF<P> elements (value = 0
   // = Field::Zero()), so no extra fill is needed.
 }
 
@@ -35,8 +35,7 @@ template <int P> std::string DynamicMatrix<P>::ToString() const {
 }
 
 template <int P>
-DynamicMatrix<P>
-DynamicMatrix<P>::Plus(const DynamicMatrix<P> &other) const {
+DynamicMatrix<P> DynamicMatrix<P>::Plus(const DynamicMatrix<P> &other) const {
   CHECK_EQ(n0_, other.n0_) << "Plus: row count mismatch";
   CHECK_EQ(n1_, other.n1_) << "Plus: column count mismatch";
   DynamicMatrix<P> result(n0_, n1_);

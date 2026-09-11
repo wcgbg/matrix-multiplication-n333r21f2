@@ -12,7 +12,6 @@ namespace matrix {
 // N2×N0 (ki = k·N0 + i). The structure constant is 1 exactly at the diagonal
 // triple (ij, jk, ki):
 //   T[i·N1+j][j·N2+k][k·N0+i] = 1.
-// (A direct port of the matrix-mult repo's MatrixMultiplicationTensor.)
 template <int P, std::size_t N0, std::size_t N1, std::size_t N2>
 Tensor<P, N0 * N1, N1 * N2, N2 * N0> BuildMulTensor() {
   Tensor<P, N0 * N1, N1 * N2, N2 * N0> tensor{};

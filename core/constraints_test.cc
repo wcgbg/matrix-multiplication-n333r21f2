@@ -44,22 +44,21 @@ TEST(ConstraintsBytesTest, EmptyRoundTrip) {
 }
 
 TEST(ConstraintsToStringTest, EmptyAndCommaJoined) {
-  EXPECT_EQ((ConstraintsToString<kP2, 6>(Constraints<kP2, 6>{})),
-            "EMPTY");
+  EXPECT_EQ((ConstraintsToString<kP2, 6>(Constraints<kP2, 6>{})), "EMPTY");
+  EXPECT_EQ(
+      (ConstraintsToString<kP2, 6>(Constraints<kP2, 6>{F2Row<6>(0b000001)})),
+      "000001");
   EXPECT_EQ((ConstraintsToString<kP2, 6>(
-                Constraints<kP2, 6>{F2Row<6>(0b000001)})),
-            "000001");
-  EXPECT_EQ((ConstraintsToString<kP2, 6>(Constraints<kP2, 6>{
-                F2Row<6>(0b000001), F2Row<6>(0b000011)})),
+                Constraints<kP2, 6>{F2Row<6>(0b000001), F2Row<6>(0b000011)})),
             "000001,000011");
 }
 
 TEST(ApplyConstraintsToTensorTest, EmptyLeavesTensorUnchanged) {
   const auto tensor =
       SparseStringToTensor<kP2, 2, 2, 2>("a0*b0*c0 + a1*b1*c1 + a1*b0*c1");
-  EXPECT_EQ((ApplyConstraintsToTensor<kP2, 2, 2, 2>(Constraints<kP2, 2>{},
-                                                       tensor)),
-            tensor);
+  EXPECT_EQ(
+      (ApplyConstraintsToTensor<kP2, 2, 2, 2>(Constraints<kP2, 2>{}, tensor)),
+      tensor);
 }
 
 TEST(ApplyConstraintsToTensorTest, SingleCoordinatePivotZeroesSlice) {
@@ -117,7 +116,7 @@ TEST(ConstraintToStringF3Test, DigitsBigEndian) {
 
 TEST(ConstraintsBytesF3Test, RoundTrip) {
   const Constraints<kP3, 3> r = {GFVec<kP3, 3>{{1, 0, 2}},
-                                    GFVec<kP3, 3>{{0, 1, 2}}};
+                                 GFVec<kP3, 3>{{0, 1, 2}}};
   const std::string bytes = ConstraintsToBytes<kP3, 3>(r);
   // sizeof(FpVec<3, 3>) == 3 → two rows × 3 bytes.
   EXPECT_EQ(bytes.size(), 6u);
@@ -163,9 +162,19 @@ TEST(ApplyConstraintsToTensorF3Test, NonOneCoefficientSubstitution) {
 TEST(ApplyConstraintsToTensorF3Test, EmptyLeavesTensorUnchanged) {
   const auto tensor =
       SparseStringToTensor<kP3, 2, 2, 2>("2*a0*b0*c0 + a1*b1*c1");
-  EXPECT_EQ((ApplyConstraintsToTensor<kP3, 2, 2, 2>(Constraints<kP3, 2>{},
-                                                       tensor)),
-            tensor);
+  EXPECT_EQ(
+      (ApplyConstraintsToTensor<kP3, 2, 2, 2>(Constraints<kP3, 2>{}, tensor)),
+      tensor);
+}
+
+TEST(ConstraintsDeathTest, RejectsInvalidSerializedRows) {
+  EXPECT_DEATH((ConstraintsFromBytes<2, 9>(std::string(1, '\0'))), "");
+  EXPECT_DEATH((ConstraintsFromBytes<2, 9>(std::string("\0\2", 2))),
+               "outside the vector dimension");
+  EXPECT_DEATH((ConstraintsFromBytes<3, 2>(std::string("\3\1", 2))),
+               "invalid constraint field element");
+  EXPECT_EQ((ConstraintsFromBytes<2, 8>(std::string(1, char(255))))[0].data,
+            255);
 }
 
 } // namespace

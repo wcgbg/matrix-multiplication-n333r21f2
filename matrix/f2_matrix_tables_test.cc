@@ -12,10 +12,8 @@
 // independently-tested F2Matrix operators (operator*, Inversed, Transposed) as
 // the reference. The shapes deliberately span N0<N1, N0>N1, N0=N1 and the
 // degenerate row/column shapes, because the table indexing differs per
-// orientation: a historical bug swapped Mult011's operands, which is invisible
-// for square (N0=N1) formats — the product order is the only thing wrong there
-// — but corrupts non-square ones. The non-square Mult011/Mult001 cases below
-// are what pin that down.
+// orientation. Non-square Mult011/Mult001 cases check operand shapes as well
+// as multiplication order; square cases alone cannot detect shape mismatches.
 
 namespace matrix {
 namespace {
@@ -132,7 +130,7 @@ TEST(F2MatrixTablesTest, Mult011MatchesReferenceProduct) {
   CheckMult011<2, 2>();
   CheckMult011<3, 3>();
   CheckMult011<2, 3>(); // N0 < N1
-  CheckMult011<3, 2>(); // N0 > N1 (broke the original code)
+  CheckMult011<3, 2>(); // N0 > N1
   CheckMult011<4, 2>(); // N0 > N1
   CheckMult011<4, 3>(); // N0 > N1, largest tractable shape
   CheckMult011<1, 4>(); // degenerate row shape

@@ -12,13 +12,6 @@
 //     them; the represented tensor is unchanged and the rank may drop.
 //   * Plus: merge terms to introduce a redundant term, escaping local minima
 //     (rank +1), then immediately try to flip it away.
-//
-// Ported from matrix-multiplication-flip/f2/scheme.{h,cc} (the kFlip + Plus
-// path only). The source was specialized to the matrix-multiplication tensor:
-// each component was a flattened n x m matrix, so the bit width of a mode was a
-// product n*m. Here the tensor is arbitrary, so the bit width of mode i is just
-// its plain dimension dims_[i]. The reduce / flip-to-reducible actions (which
-// needed a GF(2) linear solver) are not migrated.
 
 #include <array>
 #include <cstdint>

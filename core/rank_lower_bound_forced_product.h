@@ -16,14 +16,13 @@
 //
 // SOUNDNESS NOTE: the lemma gives rank(T) = r1 + min over ALL combinations c of
 // rank(T_c). We lower-bound each rank(T_c) by a flatten bound and take the min,
-// so the min MUST range over every combination. The coefficients live in 𝔽_q
-// (q = P), so each coefficient ranges over all q field elements —
-// enumerating only the prime subfield 𝔽_P would skip combinations and could
-// report a min larger than the true rank (an unsound lower bound).
+// so the min MUST range over every combination. Each coefficient ranges over
+// all P elements of 𝔽_P; skipping combinations could report a minimum larger
+// than the true rank and give an unsound lower bound.
 //
-// Split out of the matrix-mult rank_lower_bound_basic_technics.h. Only the
-// A-loop (RankLowerBoundForcedProductA) lives here; the three-position wrapper
-// that records which projection won lives in rank_lower_bound_computer.h.
+// RankLowerBoundForcedProductA handles one slicing axis. The three-position
+// wrapper records the winning projection in
+// subspace_bounds/search/rank_lower_bound_computer.h.
 
 #include <algorithm>
 #include <atomic>
@@ -48,7 +47,6 @@ namespace forced_product_internal {
 
 // Scrambler: a large prime coprime to num_iterations gives a pseudo-random
 // visit order so an early break is likely to hit a low-rank witness fast.
-// For F_2 this matches the legacy code (kPrime modulo 2^32).
 inline constexpr uint64_t kScramblePrime = 73074167;
 
 // The NB × NC rank of every a-slice.

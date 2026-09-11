@@ -1,6 +1,5 @@
 #include "subspace_bounds/verifier/verifier.h"
 
-#include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
@@ -34,8 +33,7 @@ BuildVerifiedCertificate(const ProcessOptions &options = ProcessOptions{}) {
 
 template <class Problem>
 int RunPipeline(const ProcessOptions &options = ProcessOptions{}) {
-  auto [certificate, archive_path] =
-      BuildVerifiedCertificate<Problem>(options);
+  auto [certificate, archive_path] = BuildVerifiedCertificate<Problem>(options);
   if (certificate.constrained_tensors_size() == 0)
     return -1;
   EXPECT_EQ(certificate.characteristic(), Problem::kP);
@@ -68,8 +66,6 @@ TEST(VerifierTest, MatMul222WithRankOneSpan) {
                 ProcessOptions{.rank1span_max_subspaces = 1'000'000}),
             7);
 }
-
-
 
 TEST(VerifierTest, AcceptsSoundHandWrittenRankOneSpanProof) {
   using Problem = matrix::Problem<2, 2, 2, 2>;
@@ -135,8 +131,6 @@ TEST(VerifierDeathTest, DetectsInflatedRankOneSpanBound) {
                "rank-one-span exclusion did not hold");
 }
 
-
-
 TEST(VerifierDeathTest, RejectsRankOneSpanInvalidAxis) {
   using Problem = matrix::Problem<2, 1, 1, 1>;
   tbb::global_control control(tbb::global_control::max_allowed_parallelism, 1);
@@ -199,43 +193,64 @@ TEST(VerifierDeathTest, RejectsBacktrackingMaskOutsidePath) {
                "outside the recorded path");
 }
 
-// Archive regeneration: with the .btp gone (or one entry stale), running the
-// DP with regenerate_backtracking_proofs re-derives exactly the missing
-// traces at the recorded bounds; the bounds stay as they were and the
-// verifier accepts the rebuilt archive.
-TEST(VerifierTest, RegeneratesBacktrackingArchive) {
+template <class Problem> void CheckWitnessDecoding() {
+  const typename Problem::SymmetryGroup group;
+  Constraints<Problem::kP, Problem::kNA> q{
+      DecodeGFVec<Problem::kP, Problem::kNA>(1)};
+  const auto qi = static_cast<uint32_t>(group.query.Identity());
+  const auto si = static_cast<uint32_t>(group.store.Identity());
+  EXPECT_EQ(CanonicalFromWitness<Problem>(group, q, qi, si), q);
+  for (int i = 0; i < group.query.Size(); ++i) {
+    const auto code = static_cast<uint32_t>(group.query.At(i));
+    EXPECT_EQ(static_cast<uint32_t>(group.query.DecodeChecked(code)), code);
+  }
+  for (int i = 0; i < group.store.Size(); ++i) {
+    const auto code = static_cast<uint32_t>(group.store.At(i));
+    EXPECT_EQ(static_cast<uint32_t>(group.store.DecodeChecked(code)), code);
+  }
+  EXPECT_DEATH(CanonicalFromWitness<Problem>(group, q, 0, si),
+               "singular query");
+  EXPECT_DEATH(CanonicalFromWitness<Problem>(group, q, qi, 0),
+               "singular store");
+  EXPECT_DEATH(CanonicalFromWitness<Problem>(group, q, qi, UINT32_MAX),
+               "invalid store");
+  EXPECT_DEATH(CanonicalFromWitness<Problem>(group, q, UINT32_MAX, si),
+               "invalid");
+}
+
+TEST(VerifierDeathTest, ChecksBinaryAndTernaryWitnessEncodings) {
+  CheckWitnessDecoding<matrix::Problem<2, 2, 2, 2>>();
+  CheckWitnessDecoding<matrix::Problem<3, 2, 2, 2>>();
+}
+
+TEST(VerifierDeathTest, RejectsTransposeOnRectangularProblem) {
+  const matrix::SymmetryGroup<2, 2, 3, 3> binary;
+  EXPECT_DEATH(binary.query.DecodeChecked(
+                   static_cast<uint32_t>(binary.query.Identity()) | (1u << 16)),
+               "transpose");
+  const matrix::FpSymmetryGroup<3, 2, 3, 3> ternary;
+  EXPECT_DEATH(
+      ternary.query.DecodeChecked(
+          static_cast<uint32_t>(ternary.query.Identity()) | (1u << 31)),
+      "transpose");
+}
+
+TEST(VerifierDeathTest, RejectsMalformedCertificateBeforeCheckingProof) {
   using Problem = matrix::Problem<2, 2, 2, 2>;
-  auto [certificate, archive_path] = BuildVerifiedCertificate<Problem>();
-  ASSERT_GE(FirstBacktrackingOrbit(certificate), 0);
-  const std::string output_path =
-      std::string(testing::TempDir()) + "/" + Problem::Name() + ".pb.txt";
-  ASSERT_EQ(GetBacktrackingProofArchivePath(output_path), archive_path);
-  std::vector<int> bounds;
-  for (const auto &rt : certificate.constrained_tensors()) {
-    bounds.push_back(rt.rank_lower_bound());
-  }
-
-  ProcessOptions regen;
-  regen.regenerate_backtracking_proofs = true;
-
-  // Whole archive missing.
-  std::filesystem::remove(archive_path);
-  ProcessOrbits<Problem>(regen, output_path, &certificate);
-  for (int i = 0; i < certificate.constrained_tensors_size(); ++i) {
-    EXPECT_EQ(certificate.constrained_tensors(i).rank_lower_bound(), bounds[i]) << i;
-  }
-  EXPECT_EQ(VerifyRankLowerBound<Problem>(certificate, archive_path), bounds.back());
-
-  // One stale entry.
-  const int orbit = FirstBacktrackingOrbit(certificate);
-  {
-    BacktrackingProofArchive archive = BacktrackingProofArchive::Load(archive_path);
-    archive.Clear(orbit);
-    archive.Save(archive_path);
-  }
-  ProcessOrbits<Problem>(regen, output_path, &certificate);
-  EXPECT_FALSE(BacktrackingProofArchive::Load(archive_path).Get(orbit).Empty());
-  EXPECT_EQ(VerifyRankLowerBound<Problem>(certificate, archive_path), bounds.back());
+  const Problem::SymmetryGroup group;
+  const RankMap<Problem> map;
+  const BacktrackingProofArchive archive;
+  pb::ConstrainedTensor rt;
+  rt.set_constraints(std::string(1, char(0x80)));
+  EXPECT_DEATH(VerifyOne<Problem>(rt, group, map, archive),
+               "outside the vector");
+  rt.set_constraints(std::string(1, '\0'));
+  EXPECT_DEATH(VerifyOne<Problem>(rt, group, map, archive),
+               "dependent certificate");
+  pb::DegenerateProof proof;
+  proof.set_extra_constraint(16);
+  EXPECT_DEATH(VerifyDegenerateProof<Problem>({}, 1, proof, group, map),
+               "extra constraint code");
 }
 
 } // namespace

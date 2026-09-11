@@ -54,24 +54,10 @@ struct ProcessOptions {
   // when its up-front cost estimate exceeds this; 0 disables it. Off by
   // default so existing golden certificates stay byte-identical.
   uint64_t rank1span_max_subspaces = 0;
-  // Archive regeneration: for every orbit whose recorded proof is a
-  // backtracking proof and whose archive trace is missing or does not match
-  // proof_size, re-run the search at the recorded bound (target = lb, never
-  // lb + 1) and store the new trace. No other technique runs and no bound is
-  // searched for; only proof_size (and, if the search happens to prove more,
-  // the bound) can change. Restores an archive that fell out of sync with
-  // its certificate.
-  bool regenerate_backtracking_proofs = false;
-  // Restrict processing to the orbits with these `index` values (empty = every
-  // orbit of the dimensions in [dim_min, dim_max]). Orbits not listed keep
-  // their bounds and proofs and only pre-seed the OrbitMap. Used for
-  // per-orbit reruns and ablations (rank_lower_bound_main --recompute_orbits).
-  std::vector<int> only_orbits;
 };
 
 // Three-position Forced Product: run RankLowerBoundForcedProductA on the tensor
-// and its two cyclic transposes, recording which projection won. Mirrors
-// rank_search/rank_lower_bound_computer.h's RankLowerBoundForcedProduct.
+// and its two cyclic transposes, recording which projection won.
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
 std::pair<int, pb::ForcedProductProof>
 RankLowerBoundForcedProduct(const Tensor<P, NA, NB, NC> &tensor,
@@ -103,9 +89,8 @@ RankLowerBoundForcedProduct(const Tensor<P, NA, NB, NC> &tensor,
 
 // Number of constraints (subspace dimension) encoded in a ConstrainedTensor.
 template <class Problem> int NumConstraints(const pb::ConstrainedTensor &rt) {
-  return static_cast<int>(
-      rt.constraints().size() /
-      sizeof(GFVec<Problem::kP, Problem::kNA>));
+  return static_cast<int>(rt.constraints().size() /
+                          sizeof(GFVec<Problem::kP, Problem::kNA>));
 }
 
 namespace rank_lower_bound_computer_internal {
@@ -125,33 +110,6 @@ struct OrbitBound {
   pb::RankLowerBoundProof proof;
   BacktrackingProof blob;
 };
-
-// Archive regeneration (ProcessOptions::regenerate_backtracking_proofs): a
-// single search at the recorded bound; the trace it returns replaces the
-// missing/mismatched one. Nothing else runs. On failure the recorded bound
-// comes back with no proof, so the write-back skips the orbit.
-template <class Problem>
-std::tuple<int, pb::RankLowerBoundProof, BacktrackingProof>
-RegenerateBacktrackingTrace(const pb::ConstrainedTensor &rt,
-                            const ProblemConstraints<Problem> &constraints,
-                            const OrbitMap<Problem> &orbit_map,
-                            const ProcessOptions &options,
-                            int rank_lower_bound) {
-  CHECK(rt.rank_lower_bound_proof().has_backtracking_proof());
-  auto [rank, backtracking_proof, blob] =
-      RankLowerBoundBacktracking<Problem>::Search(
-          constraints, orbit_map, rank_lower_bound - 1,
-          options.backtracking_step_limit, options.backtracking_max_map_size);
-  if (rank < rank_lower_bound) {
-    LOG(ERROR) << "could not regenerate the backtracking trace of orbit index="
-               << rt.index() << " at bound " << rank_lower_bound
-               << " within the step limit; its archive entry stays stale";
-    return {rank_lower_bound, pb::RankLowerBoundProof{}, BacktrackingProof{}};
-  }
-  pb::RankLowerBoundProof proof;
-  *proof.mutable_backtracking_proof() = std::move(backtracking_proof);
-  return {rank, std::move(proof), std::move(blob)};
-}
 
 template <class Problem>
 void TryFlatten(const pb::ConstrainedTensor &rt,
@@ -192,8 +150,8 @@ void TryForcedProduct(const pb::ConstrainedTensor &rt,
     *best->proof.mutable_forced_product_proof() =
         std::move(forced_product_proof);
     VLOG(1) << "index=" << rt.index() << " forced product (axis "
-            << best->proof.forced_product_proof().projection_type()
-            << ") -> " << best->rank_lower_bound;
+            << best->proof.forced_product_proof().projection_type() << ") -> "
+            << best->rank_lower_bound;
   }
 }
 
@@ -205,9 +163,8 @@ template <class Problem>
 void ClimbRankOneSpan(const pb::ConstrainedTensor &rt,
                       const ProblemTensor<Problem> &tensor,
                       const ProcessOptions &options, OrbitBound *best) {
-  const int upper = rt.has_rank_upper_bound()
-                        ? rt.rank_upper_bound()
-                        : std::numeric_limits<int>::max();
+  const int upper = rt.has_rank_upper_bound() ? rt.rank_upper_bound()
+                                              : std::numeric_limits<int>::max();
   while (best->rank_lower_bound < upper) {
     auto [rank1span_result, rank1span_axis] =
         RankOneSpanExclude(tensor, best->rank_lower_bound,
@@ -224,9 +181,8 @@ void ClimbRankOneSpan(const pb::ConstrainedTensor &rt,
                      << "; rank_upper_bound=" << rt.rank_upper_bound()
                      << " is improvable (not recorded)";
       } else if (rank1span_result == RankOneSpanResult::kOverBudget) {
-        LOG(INFO) << "rank-one-span over budget for orbit index="
-                  << rt.index() << " at target " << best->rank_lower_bound
-                  << ": no claim";
+        LOG(INFO) << "rank-one-span over budget for orbit index=" << rt.index()
+                  << " at target " << best->rank_lower_bound << ": no claim";
       }
       break;
     }
@@ -249,8 +205,7 @@ void ClimbBacktracking(const pb::ConstrainedTensor &rt,
     auto [backtracking_rank, backtracking_proof, backtracking_blob] =
         RankLowerBoundBacktracking<Problem>::Search(
             constraints, orbit_map, best->rank_lower_bound,
-            options.backtracking_step_limit,
-            options.backtracking_max_map_size);
+            options.backtracking_step_limit, options.backtracking_max_map_size);
     if (backtracking_rank <= best->rank_lower_bound) {
       break;
     }
@@ -267,25 +222,17 @@ void ClimbBacktracking(const pb::ConstrainedTensor &rt,
 // Process a single constrained-tensor orbit, returning (new_lb, proof, trace).
 // `trace` is the winning backtracking DFS trace when a backtracking proof won
 // (the caller stores it in the per-certificate archive), and empty otherwise.
-// Technique order: flatten, degenerate, forced product, rank-one-span,
-// backtracking. Flatten and forced product only run on orbits without a
-// recorded bound (a re-run keeps what an earlier pass found); the others are
-// cheap under their budgets and self-contained, so they also run on re-runs.
 template <class Problem>
 std::tuple<int, pb::RankLowerBoundProof, BacktrackingProof>
 ProcessOrbit(const pb::ConstrainedTensor &rt,
              const OrbitMap<Problem> &orbit_map,
-             const ProcessOptions &options, bool regenerate = false) {
+             const ProcessOptions &options) {
   using namespace rank_lower_bound_computer_internal;
   OrbitBound best;
   best.rank_lower_bound =
       rt.has_rank_lower_bound() ? rt.rank_lower_bound() : -1;
   const ProblemConstraints<Problem> constraints =
       ConstraintsFromBytes<Problem::kP, Problem::kNA>(rt.constraints());
-  if (regenerate) {
-    return RegenerateBacktrackingTrace<Problem>(rt, constraints, orbit_map,
-                                                options, best.rank_lower_bound);
-  }
   const ProblemTensor<Problem> tensor =
       ApplyConstraintsToTensor<Problem::kP, Problem::kNA, Problem::kNB,
                                Problem::kNC>(constraints,
@@ -297,14 +244,27 @@ ProcessOrbit(const pb::ConstrainedTensor &rt,
   if (options.degenerate_method) {
     TryDegenerate<Problem>(rt, orbit_map, constraints, &best);
   }
+  // Cheap passes: forced product at 1/16 of the iteration budget and
+  // rank-one-span at 1/16 of the subspace budget.
+  ProcessOptions fast_options = options;
+  fast_options.forced_product_max_iterations_log2 =
+      std::max(fast_options.forced_product_max_iterations_log2 - 4, 0);
+  fast_options.rank1span_max_subspaces /= 16;
   if (fresh) {
-    TryForcedProduct<Problem>(rt, tensor, options, &best);
+    TryForcedProduct<Problem>(rt, tensor, fast_options, &best);
   }
-  if (options.rank1span_max_subspaces > 0) {
-    ClimbRankOneSpan<Problem>(rt, tensor, options, &best);
+  if (fresh && fast_options.rank1span_max_subspaces > 0) {
+    ClimbRankOneSpan<Problem>(rt, tensor, fast_options, &best);
   }
   if (options.backtracking_step_limit > 0) {
     ClimbBacktracking<Problem>(rt, constraints, orbit_map, options, &best);
+  }
+  // Full-budget passes: extend the bound backtracking reached, if they can.
+  if (fresh) {
+    TryForcedProduct<Problem>(rt, tensor, options, &best);
+  }
+  if (fresh && options.rank1span_max_subspaces > 0) {
+    ClimbRankOneSpan<Problem>(rt, tensor, options, &best);
   }
   return {best.rank_lower_bound, std::move(best.proof), std::move(best.blob)};
 }
@@ -313,21 +273,14 @@ namespace rank_lower_bound_computer_internal {
 
 using OrbitResult = std::tuple<int, pb::RankLowerBoundProof, BacktrackingProof>;
 
-// The certificate's orbits with `dim` constraints (restricted to
-// options.only_orbits when that is non-empty), in a random order.
+// The certificate's orbits with `dim` constraints, in a random order.
 template <class Problem>
 std::vector<pb::ConstrainedTensor *>
-OrbitsAtDim(int dim, const ProcessOptions &options,
-            pb::Certificate *certificate, std::mt19937_64 *rng) {
+OrbitsAtDim(int dim, pb::Certificate *certificate, std::mt19937_64 *rng) {
   std::vector<pb::ConstrainedTensor *> rts;
   for (int i = 0; i < certificate->constrained_tensors_size(); ++i) {
     pb::ConstrainedTensor *rt = certificate->mutable_constrained_tensors(i);
     if (NumConstraints<Problem>(*rt) != dim) {
-      continue;
-    }
-    if (!options.only_orbits.empty() &&
-        std::find(options.only_orbits.begin(), options.only_orbits.end(),
-                  static_cast<int>(rt->index())) == options.only_orbits.end()) {
       continue;
     }
     rts.push_back(rt);
@@ -336,57 +289,22 @@ OrbitsAtDim(int dim, const ProcessOptions &options,
   return rts;
 }
 
-// Regeneration mode: which orbits have a backtracking trace that is absent
-// from the archive or inconsistent with the certificate (decided serially;
-// the archive is not read inside the parallel phase).
-inline std::vector<bool>
-StaleBacktrackingTraces(const std::vector<pb::ConstrainedTensor *> &rts,
-                        const BacktrackingProofArchive &archive) {
-  std::vector<bool> regenerate(rts.size(), false);
-  for (size_t i = 0; i < rts.size(); ++i) {
-    const pb::ConstrainedTensor &rt = *rts[i];
-    if (!rt.rank_lower_bound_proof().has_backtracking_proof()) {
-      continue;
-    }
-    const size_t recorded =
-        rt.rank_lower_bound_proof().backtracking_proof().proof_size();
-    regenerate[i] =
-        archive.Get(static_cast<int>(rt.index())).Size() != recorded;
-  }
-  return regenerate;
-}
-
 // Phase 1: the new bound of every orbit, computed in parallel with the map
 // read-only. Each task writes only its own slot, so the backtracking blob
-// rides along with no shared mutation. In regeneration mode the orbits whose
-// trace is not stale get their recorded bound with no proof (the write-back
-// skips them).
+// rides along with no shared mutation.
 template <class Problem>
 std::vector<OrbitResult>
 ComputeOrbitBounds(const std::vector<pb::ConstrainedTensor *> &rts,
-                   const std::vector<bool> &regenerate,
                    const OrbitMap<Problem> &orbit_map,
                    const ProcessOptions &options) {
   std::vector<OrbitResult> results(rts.size());
   std::atomic<int> progress = 0;
   tbb::parallel_for(0, static_cast<int>(rts.size()), [&](int idx) {
-    if (options.regenerate_backtracking_proofs && !regenerate[idx]) {
-      results[idx] = {rts[idx]->rank_lower_bound(), {}, {}};
-      progress.fetch_add(1, std::memory_order_relaxed);
-      return;
-    }
-    auto [rank, rank_proof, blob] = ProcessOrbit<Problem>(
-        *rts[idx], orbit_map, options, options.regenerate_backtracking_proofs);
+    auto [rank, rank_proof, blob] =
+        ProcessOrbit<Problem>(*rts[idx], orbit_map, options);
     if (rank_proof.proof_case() != pb::RankLowerBoundProof::PROOF_NOT_SET) {
-      if (options.regenerate_backtracking_proofs) {
-        LOG(INFO) << "Regenerated backtracking trace for index="
-                  << rts[idx]->index() << " at bound " << rank
-                  << " (proof_size="
-                  << rank_proof.backtracking_proof().proof_size() << ")";
-      } else {
-        LOG(INFO) << "Better LB for index=" << rts[idx]->index() << ": "
-                  << rts[idx]->rank_lower_bound() << "->" << rank;
-      }
+      LOG(INFO) << "Better LB for index=" << rts[idx]->index() << ": "
+                << rts[idx]->rank_lower_bound() << "->" << rank;
     }
     results[idx] = {rank, std::move(rank_proof), std::move(blob)};
 
@@ -405,15 +323,15 @@ template <class Problem>
 void PublishBounds(const std::vector<pb::ConstrainedTensor *> &rts,
                    const std::vector<OrbitResult> &results,
                    OrbitMap<Problem> *orbit_map) {
-  tbb::parallel_for(
-      tbb::blocked_range<int>(0, static_cast<int>(rts.size())),
-      [&](const tbb::blocked_range<int> &range) {
-        for (int i = range.begin(); i != range.end(); ++i) {
-          orbit_map->Set(ConstraintsFromBytes<Problem::kP, Problem::kNA>(
-                             rts[i]->constraints()),
-                         std::get<0>(results[i]));
-        }
-      });
+  tbb::parallel_for(tbb::blocked_range<int>(0, static_cast<int>(rts.size())),
+                    [&](const tbb::blocked_range<int> &range) {
+                      for (int i = range.begin(); i != range.end(); ++i) {
+                        orbit_map->Set(
+                            ConstraintsFromBytes<Problem::kP, Problem::kNA>(
+                                rts[i]->constraints()),
+                            std::get<0>(results[i]));
+                      }
+                    });
 }
 
 // Phase 3: the improved bounds and proofs go back into the certificate and
@@ -450,8 +368,7 @@ inline bool WriteBackProofs(const std::vector<pb::ConstrainedTensor *> &rts,
 
 // Process all orbits at a single subspace dimension, then insert their
 // (updated) bounds into the OrbitMap so the next-smaller dimension can consult
-// them. Returns true iff any orbit's lower bound improved. Mirrors
-// ProcessOneRankLowerBound in the matrix-mult code.
+// them. Returns true iff any orbit's lower bound improved.
 template <class Problem>
 bool ProcessOrbitsAtDim(int dim, const ProcessOptions &options,
                         BacktrackingProofArchive *archive,
@@ -461,15 +378,11 @@ bool ProcessOrbitsAtDim(int dim, const ProcessOptions &options,
   const auto iteration_start = std::chrono::steady_clock::now();
 
   const std::vector<pb::ConstrainedTensor *> rts =
-      OrbitsAtDim<Problem>(dim, options, certificate, rng);
+      OrbitsAtDim<Problem>(dim, certificate, rng);
   LOG(INFO) << "Processing dim=" << dim << ", count=" << rts.size();
 
-  const std::vector<bool> regenerate =
-      options.regenerate_backtracking_proofs
-          ? StaleBacktrackingTraces(rts, *archive)
-          : std::vector<bool>(rts.size(), false);
   std::vector<OrbitResult> results =
-      ComputeOrbitBounds<Problem>(rts, regenerate, *orbit_map, options);
+      ComputeOrbitBounds<Problem>(rts, *orbit_map, options);
 
   LOG(INFO) << "ProcessOrbitsAtDim P2...";
   PublishBounds<Problem>(rts, results, orbit_map);

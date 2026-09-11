@@ -12,7 +12,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -91,7 +90,8 @@ namespace rank_one_span_internal {
 // witness). The op count is exact on the accept path (every worker completes
 // its share, so the sum does not depend on scheduling) and only the early
 // exits (witness found, budget tripped) are timing dependent; that is why
-// the verifier can run the parallel engine (see subspace_bounds/verifier/verifier.h).
+// the verifier can run the parallel engine (see
+// subspace_bounds/verifier/verifier.h).
 //
 // Structure: the constructor builds the read-only tables (family images and
 // element lists, occupancy, multiplicities, b0 and the key -> rank-one
@@ -166,7 +166,6 @@ private:
     std::vector<KeyBasis> jbases;
     std::vector<int> grow_list;
     uint64_t local_ops = 0;
-    uint64_t progress = 0;
   };
 
   // Workers buffer ops locally and flush every kFlushInterval (and at chunk
@@ -296,7 +295,6 @@ private:
               return true;
             }
             Charge(ctx, 1);
-            Progress(ctx, "dmax=k", "subspace", f);
             RowsToKeys(fam, rows, k_, ctx.qb.data());
             return Submit(ctx, ctx.qb.data(), k_);
           },
@@ -319,7 +317,6 @@ private:
               return true;
             }
             Charge(ctx, 1);
-            Progress(ctx, "dmax=k-1", "subspace", f);
             uint64_t sb[kMaxFamilyK];
             RowsToKeys(fam, rows, k_ - 1, sb);
             const int snpts = 1 << (k_ - 1);
@@ -579,19 +576,19 @@ private:
     if (quo.Dim() != fam.image.Dim() - 1 || quo.Dim() < 2) {
       return false; // p not in I_f, or image too small
     }
-    return ForEachSubspaceRREF(
-        quo.Dim(), 2, [&](const std::vector<uint64_t> &rows) {
-          uint64_t d1 = 0, d2 = 0;
-          for (int j = 0; j < quo.Dim(); ++j) {
-            if ((rows[0] >> j) & 1) {
-              d1 ^= quo.rows[j];
-            }
-            if ((rows[1] >> j) & 1) {
-              d2 ^= quo.rows[j];
-            }
-          }
-          return cb(d1, d2);
-        });
+    return ForEachSubspaceRREF(quo.Dim(), 2,
+                               [&](const std::vector<uint64_t> &rows) {
+                                 uint64_t d1 = 0, d2 = 0;
+                                 for (int j = 0; j < quo.Dim(); ++j) {
+                                   if ((rows[0] >> j) & 1) {
+                                     d1 ^= quo.rows[j];
+                                   }
+                                   if ((rows[1] >> j) & 1) {
+                                     d2 ^= quo.rows[j];
+                                   }
+                                 }
+                                 return cb(d1, d2);
+                               });
   }
 
   // The occupied keys of multiplicity >= 2 (the only candidates for a point
@@ -690,7 +687,6 @@ private:
             return true;
           }
           Charge(ctx, 1);
-          Progress(ctx, "C3", "D");
           return For3SubsThrough(t.f2, t.p, [&](uint64_t b1, uint64_t b2) {
             if (Stopped()) {
               return true;
@@ -734,23 +730,22 @@ private:
           if (inter.Dim() < 3) {
             continue;
           }
-          ForEachSubspaceRREF(
-              inter.Dim(), 3, [&](const std::vector<uint64_t> &rows) {
-                std::array<uint64_t, 3> d{};
-                for (int i = 0; i < 3; ++i) {
-                  for (int j = 0; j < inter.Dim(); ++j) {
-                    if ((rows[i] >> j) & 1) {
-                      d[i] ^= inter.rows[j];
-                    }
-                  }
-                }
-                roots.push_back(d);
-                return false;
-              });
+          ForEachSubspaceRREF(inter.Dim(), 3,
+                              [&](const std::vector<uint64_t> &rows) {
+                                std::array<uint64_t, 3> d{};
+                                for (int i = 0; i < 3; ++i) {
+                                  for (int j = 0; j < inter.Dim(); ++j) {
+                                    if ((rows[i] >> j) & 1) {
+                                      d[i] ^= inter.rows[j];
+                                    }
+                                  }
+                                }
+                                roots.push_back(d);
+                                return false;
+                              });
         }
       }
       RunCase(roots.size(), [&](SearchCtx &ctx, std::size_t ri) {
-        Progress(ctx, "C3'", "root");
         Complete3TwoGens(ctx, roots[ri].data());
       });
     }
@@ -783,7 +778,6 @@ private:
             return true;
           }
           Charge(ctx, 1);
-          Progress(ctx, "C4", "D");
           KeyBasis dspan;
           dspan.Insert(t.z);
           dspan.Insert(a1);
@@ -830,7 +824,6 @@ private:
           nzf = FamiliesOf(z, zf.data());
           Charge(ctx, num_families_);
         }
-        Progress(ctx, "C5", "triangle");
         for (int zi2 = 0; zi2 < nzf; ++zi2) {
           const int fz = zf[zi2];
           // need fl ∋ l, fl ≠ fz, and some f3 ∋ z⊕l outside {fz, fl}
@@ -850,8 +843,8 @@ private:
           if (!ok) {
             continue;
           }
-          const bool stop = For3SubsThrough(
-              fz, z, [&](uint64_t a1, uint64_t a2) {
+          const bool stop =
+              For3SubsThrough(fz, z, [&](uint64_t a1, uint64_t a2) {
                 if (Stopped()) {
                   return true;
                 }
@@ -898,7 +891,6 @@ private:
             return;
           }
           Charge(ctx, 1);
-          Progress(ctx, "C6", "pair");
           const uint64_t y = l2[0], b = l2[1];
           if (y == x || y == a || y == xa) {
             continue;
@@ -944,9 +936,8 @@ private:
                   }
                   if (!fmask_.empty()) {
                     // count families with a full line inside W (≥ 3 points)
-                    const uint64_t pts7[7] = {p,      a,          b,
-                                              p ^ a,  p ^ b,      a ^ b,
-                                              p ^ a ^ b};
+                    const uint64_t pts7[7] = {p,     a,     b,        p ^ a,
+                                              p ^ b, a ^ b, p ^ a ^ b};
                     uint64_t acc = 0;
                     for (const uint64_t q : pts7) {
                       acc += spread_[fmask_[q]];
@@ -972,7 +963,6 @@ private:
         Flush(ctx);
       }
       RunCase(wroots.size(), [&](SearchCtx &ctx, std::size_t ri) {
-        Progress(ctx, "C7", "root");
         Complete3TwoGens(ctx, wroots[ri].data());
       });
     }
@@ -1012,7 +1002,6 @@ private:
                       return;
                     }
                     Charge(ctx, 1);
-                    Progress(ctx, "C8", "triple");
                     if (c == 0 || c == q || (c ^ q) < c) {
                       continue;
                     }
@@ -1050,7 +1039,6 @@ private:
         }
       });
       RunCase(roots.size(), [&](SearchCtx &ctx, std::size_t ri) {
-        Progress(ctx, "C10", "root");
         Complete2ThreeGens(ctx, roots[ri].data());
       });
     }
@@ -1074,7 +1062,6 @@ private:
                 return true;
               }
               Charge(ctx, 8);
-              Progress(ctx, "C9", "subspace", f);
               uint64_t d3[3];
               RowsToKeys(fam, rows, 3, d3);
               uint64_t pts7[7];
@@ -1164,7 +1151,6 @@ private:
         if (line.Contains(g1)) {
           continue;
         }
-        Progress(ctx, "gamma", "completion");
         KeyBasis ext = line;
         ext.Insert(g1);
         for (std::size_t gj = gi + 1; gj < occupied_.size(); ++gj) {
@@ -1217,7 +1203,6 @@ private:
               if (b == a || b == (a ^ p)) {
                 continue; // X must have dim 3
               }
-              Progress(ctx, "alpha", "candidate X");
               // Per-X analysis (sound for the all-d_f≤2 shape): d_f(Ū) ≤
               // min(d_f(X) + [g grows f], 2, dim I_f), growth lemma (3).
               const uint64_t base[3] = {p, a, b};
@@ -1274,7 +1259,6 @@ private:
         if (y == x || !Occ(x ^ y)) {
           continue;
         }
-        Progress(ctx, "beta", "root pair");
         if (!npfx_done) {
           npfx = FamiliesOf(x, pfx.data());
           Charge(ctx, num_families_);
@@ -1372,7 +1356,6 @@ private:
               return;
             }
             Charge(ctx, 1);
-            Progress(ctx, "delta", "pair");
             KeyBasis x = line;
             if (!x.Insert(l2[0]) || !x.Insert(l2[1])) {
               continue; // not disjoint
@@ -1468,9 +1451,7 @@ private:
 
   // ---- Op accounting and the candidate pipeline ----
 
-  bool Occ(uint64_t q) const {
-    return (occ_words_[q >> 6] >> (q & 63)) & 1;
-  }
+  bool Occ(uint64_t q) const { return (occ_words_[q >> 6] >> (q & 63)) & 1; }
 
   SearchCtx MakeCtx() const {
     SearchCtx ctx;
@@ -1505,22 +1486,7 @@ private:
     }
   }
 
-  bool Stopped() const {
-    return verdict_.load(std::memory_order_relaxed) != 0;
-  }
-
-  // Throttled progress line of a long case: `what` names the case, `unit`
-  // what ctx.progress counts, `family` > 0 the family being swept.
-  void Progress(SearchCtx &ctx, const char *what, const char *unit,
-                int family = 0) const {
-    ++ctx.progress;
-    LOG_EVERY_T(INFO, 10) << "family search k=" << k_ << " " << what
-                          << (family > 0 ? " family " : "")
-                          << (family > 0 ? std::to_string(family) : "")
-                          << ": worker at " << unit << " " << ctx.progress
-                          << ", ops="
-                          << ops_total_.load(std::memory_order_relaxed);
-  }
+  bool Stopped() const { return verdict_.load(std::memory_order_relaxed) != 0; }
 
   // Candidate pipeline: point-count filter -> exact per-family dims -> exact
   // span check. `qb` must hold k independent keys (dim U-bar = k). Returns
@@ -1588,10 +1554,10 @@ private:
   // at `cap`, d_f(U-bar) <= min(d_f(X) + [g grows f], cap, dim I_f).
   // PrepareGrowth joins every image with X in ctx.jbases, sums the capped
   // base contributions, lists in ctx.grow_list the families a generator could
-  // still grow, and charges `charge_amount` (each site's historical amount;
-  // the op schedule is load-bearing, see the golden tests). The plan records
-  // how many families a generator must grow (gneed) and how many can grow at
-  // all (ngrow); a base with gneed > ngrow cannot be completed.
+  // still grow, and charges the caller-supplied `charge_amount`. The golden
+  // tests pin this operation schedule because it affects budget stops. The plan
+  // records how many families a generator must grow (gneed) and how many can
+  // grow at all (ngrow); a base with gneed > ngrow cannot be completed.
   struct GrowthPlan {
     int gneed;
     int ngrow;
@@ -1675,16 +1641,15 @@ private:
   template <class Worker>
   void RunCase(std::size_t n, const Worker &worker) const {
     if (parallel_ && n > 1) {
-      tbb::parallel_for(
-          tbb::blocked_range<std::size_t>(0, n),
-          [&](const tbb::blocked_range<std::size_t> &range) {
-            SearchCtx ctx = MakeCtx();
-            for (std::size_t i = range.begin();
-                 i != range.end() && !Stopped(); ++i) {
-              worker(ctx, i);
-            }
-            Flush(ctx);
-          });
+      tbb::parallel_for(tbb::blocked_range<std::size_t>(0, n),
+                        [&](const tbb::blocked_range<std::size_t> &range) {
+                          SearchCtx ctx = MakeCtx();
+                          for (std::size_t i = range.begin();
+                               i != range.end() && !Stopped(); ++i) {
+                            worker(ctx, i);
+                          }
+                          Flush(ctx);
+                        });
     } else {
       SearchCtx ctx = MakeCtx();
       for (std::size_t i = 0; i < n && !Stopped(); ++i) {
@@ -1697,14 +1662,14 @@ private:
   // Task lists for the image-subspace cases: one task per (family, first
   // pivot) partition of ForEachSubspaceRREF.
   std::vector<std::pair<int, int>> PivotTasks(int kk) const {
-      std::vector<std::pair<int, int>> tasks;
-      for (int f = 1; f <= num_families_; ++f) {
-        const int m = families_[f].image.Dim();
-        for (int p0 = m - 1; p0 >= kk - 1; --p0) {
-          tasks.push_back({f, p0});
-        }
+    std::vector<std::pair<int, int>> tasks;
+    for (int f = 1; f <= num_families_; ++f) {
+      const int m = families_[f].image.Dim();
+      for (int p0 = m - 1; p0 >= kk - 1; --p0) {
+        tasks.push_back({f, p0});
       }
-      return tasks;
+    }
+    return tasks;
   }
 
   // ---- Inputs and derived scalars (declaration order = init order) ----
@@ -1735,9 +1700,9 @@ private:
   int k_ = 0;
   int need_ = 0; // rho + k - d0: the dimension the rank-ones must add
   uint64_t ops_k_start_ = 0;
-  std::vector<uint64_t> multi2_; // occupied keys with cmult >= 2
-  std::vector<uint8_t> fmask_;      // per-key family bitmask, F <= 8 only
-  std::array<uint64_t, 256> spread_{}; // byte-lane spread LUT for fmask_
+  std::vector<uint64_t> multi2_;          // occupied keys with cmult >= 2
+  std::vector<uint8_t> fmask_;            // per-key family bitmask, F <= 8 only
+  std::array<uint64_t, 256> spread_{};    // byte-lane spread LUT for fmask_
   std::vector<std::vector<Line>> flines_; // per-family lines
 
   // ---- Shared search state ----
@@ -1750,10 +1715,10 @@ private:
 // applicability guards, then runs FamilySearch. *ops_out receives the op
 // count (0 when the guards reject).
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
-RankOneSpanResult
-RankOneSpanFamilySearch(const SliceSpanA<P, NA, NB, NC> &span,
-                        int target_rank, uint64_t op_budget, uint64_t *ops_out,
-                        bool parallel = false) {
+RankOneSpanResult RankOneSpanFamilySearch(const SliceSpanA<P, NA, NB, NC> &span,
+                                          int target_rank, uint64_t op_budget,
+                                          uint64_t *ops_out,
+                                          bool parallel = false) {
   const int rb = span.rb, rc = span.rc, rho = span.rho;
   const int dq = rb * rc - rho;
   const int e = std::min(target_rank - rho, dq);

@@ -1,8 +1,9 @@
 #pragma once
 
 // Shared vocabulary of the rank-one-span exclusion engines
-// (core/rank_lower_bound_rank_one_span.h for 𝔽₂, core/rank_lower_bound_rank_one_span_fp.h
-// for other prime fields): the verdict type and saturating counters.
+// (core/rank_lower_bound_rank_one_span.h for 𝔽₂,
+// core/rank_lower_bound_rank_one_span_fp.h for other prime fields): the verdict
+// type and saturating counters.
 
 #include <cstdint>
 #include <limits>
