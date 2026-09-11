@@ -68,7 +68,7 @@ jobs:
       - name: Sanitizer instrumentation and regression tests
         if: matrix.compiler != 'gcc'
         run: >-
-          bazel test --config=debug
+          bazel test --config=debug --copt=-O2
           //core:sanitizer_probe_test //core:constraints_test
           //core:gf_test //subspace_bounds/verifier:verifier_test
           //profiles:fp_search_test //profiles:q02_n333_search_test
