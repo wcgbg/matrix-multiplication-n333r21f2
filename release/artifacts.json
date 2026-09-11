@@ -19,8 +19,8 @@
         "sha256": "2e351c9a39676e38551d20b445177fd5f34d986e1d778bb9fe3db65063c2a4ec"
       },
       "certs/matrix/cert_matrix_q02_n333.pb.txt": {
-        "bytes": 390420,
-        "sha256": "6bb44aba86d8ad8ae8b0ad95fbce556a7e390752a09f09ed27e4312a04568857"
+        "bytes": 116349,
+        "sha256": "2564ad7cd15fa91077d6fcc7bf23ddb0592ede7b33280a3407471e77260bfb0c"
       }
     },
     "proof_counts": {

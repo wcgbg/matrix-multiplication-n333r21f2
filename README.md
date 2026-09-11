@@ -1,6 +1,7 @@
 # A Lower Bound of 21 for 3 by 3 Matrix Multiplication over F2
 
-This is the companion repository for the paper *A Lower Bound of 21 for 3×3 Matrix Multiplication over 𝔽₂* 
+This is the companion repository for the paper *A Lower Bound of 21 for $3\times3$ Matrix
+Multiplication over $\mathbb{F}_2$* 
 ([arXiv:2609.06725](https://arxiv.org/abs/2609.06725)). The paper proves two results
 about the tensor rank $\mathbf{R}$ of the matrix-multiplication tensor
 $\langle n_0,n_1,n_2\rangle$ (an $n_0\times n_1$ matrix times an
