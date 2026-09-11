@@ -81,7 +81,7 @@ TEST(FamilySearchHeavyTest, N333Orbit45ExcludesRank13) {
 // here would mean the flip-graph upper bound 15 is not tight for that orbit —
 // report it rather than treating the test failure as a code bug.
 struct K5Orbit {
-  int index;
+  int index = 0;
   std::vector<uint16_t> words;
 };
 

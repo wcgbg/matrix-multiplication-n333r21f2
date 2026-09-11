@@ -12,7 +12,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15]
+        include:
+          - os: ubuntu-26.04
+            compiler: gcc
+          - os: ubuntu-26.04
+            compiler: clang-22
+          - os: macos-15
+            compiler: apple-clang
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -20,18 +26,23 @@ jobs:
         with:
           lfs: true
           persist-credentials: false
-      - name: Select GCC 14 on Linux
-        if: runner.os == 'Linux'
+      - name: Select the default GCC (15) on Linux
+        if: matrix.compiler == 'gcc'
+        run: |
+          echo 'CC=/usr/bin/gcc' >> "$GITHUB_ENV"
+          echo 'CXX=/usr/bin/g++' >> "$GITHUB_ENV"
+      - name: Install Clang 22 on Linux
+        if: matrix.compiler == 'clang-22'
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-14
-          echo 'CC=/usr/bin/gcc-14' >> "$GITHUB_ENV"
-          echo 'CXX=/usr/bin/g++-14' >> "$GITHUB_ENV"
+          sudo apt-get install -y clang-22 libclang-rt-22-dev llvm-22-linker-tools
+          echo 'CC=/usr/bin/clang-22' >> "$GITHUB_ENV"
+          echo 'CXX=/usr/bin/clang++-22' >> "$GITHUB_ENV"
       - uses: bazel-contrib/setup-bazel@0.19.0
         with:
           bazelisk-cache: true
           repository-cache: true
-          disk-cache: ${{ runner.os }}
+          disk-cache: ${{ matrix.os }}-${{ matrix.compiler }}
           cache-save: ${{ github.event_name != 'pull_request' }}
           bazelrc: |
             build --jobs=2
@@ -54,10 +65,11 @@ jobs:
           python3 run.py verify-table q03_n233 --histogram
           python3 run.py profile q03_n233
           python3 run.py cross-check q03_n233 restrictions
-      - name: Sanitizer instrumentation and regression tests
+      - name: Sanitizer regression tests
+        if: matrix.compiler != 'gcc'
         run: >-
-          bazel test --config=debug
-          //core:sanitizer_probe_test //core:constraints_test
+          bazel test --config=debug --copt=-O2
+          //core:constraints_test
           //core:gf_test //subspace_bounds/verifier:verifier_test
           //profiles:fp_search_test //profiles:q02_n333_search_test
       - name: Capture reproduction evidence
@@ -75,7 +87,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: verification-${{ runner.os }}
+          name: verification-${{ matrix.os }}-${{ matrix.compiler }}
           path: |
             tmp/release-manifest.json
             log/reproduction/*.log

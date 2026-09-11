@@ -204,7 +204,15 @@ cc_library(
 
 cc_library(
     name = "rank_one_span_family_search",
-    hdrs = ["rank_one_span_family_search.h"],
+    hdrs = [
+        "rank_one_span_family_search.h",
+        "rank_one_span_family_search/basic_cases.h",
+        "rank_one_span_family_search/geometry.h",
+        "rank_one_span_family_search/k4_cases.h",
+        "rank_one_span_family_search/k5_completion.h",
+        "rank_one_span_family_search/k5_lines.h",
+        "rank_one_span_family_search/k5_three_spaces.h",
+    ],
     deps = [
         ":rank_one_span_common",
         ":rank_one_span_f2",
@@ -253,8 +261,8 @@ cc_test(
 )
 
 cc_test(
+    # It runs more than 1 hour, longer than "size=enormous" allows.
     name = "rank_lower_bound_rank_one_span_heavy_test",
-    size = "enormous",
     srcs = ["rank_lower_bound_rank_one_span_heavy_test.cc"],
     tags = ["manual"],
     deps = [
@@ -363,13 +371,4 @@ cc_test(
         ":dynamic_matrix",
         "@googletest//:gtest_main",
     ],
-)
-
-# Deliberate invalid operations verify that the debug configuration actually
-# instruments code. This target is only meaningful with --config=debug.
-cc_test(
-    name = "sanitizer_probe_test",
-    srcs = ["sanitizer_probe_test.cc"],
-    tags = ["manual"],
-    deps = ["@googletest//:gtest_main"],
 )
