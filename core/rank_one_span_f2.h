@@ -297,13 +297,19 @@ inline constexpr uint64_t kRankOneSpanV1CostThreshold = 100'000'000;
 inline constexpr int kMaxFamilyK = 5;   // max quotient dims handled
 inline constexpr int kMaxFamilyDq = 24; // occupancy arrays are 2^dq entries
 inline constexpr int kMaxFamilySideDim = 10;
+// Capacity of KeyBasis below. The family search joins a family image (dim at
+// most the other core side) with up to kMaxFamilyK keys, so the other side is
+// capped at kKeyBasisCapacity - kMaxFamilyK; that also bounds its 2^side
+// rank-one sweep, which runs before the budget is checked.
+inline constexpr int kKeyBasisCapacity = 16;
+inline constexpr int kMaxFamilyOtherSideDim = kKeyBasisCapacity - kMaxFamilyK;
 
 // Small fixed-capacity echelon basis over dq-bit keys (rows kept in strictly
 // decreasing top-bit order, i.e. decreasing value; Reduce over that order
 // yields canonical residues — same argument as LinearBasis). Trivially
 // copyable on purpose: the family search copies bases in hot loops.
 struct KeyBasis {
-  std::array<uint64_t, 16> rows;
+  std::array<uint64_t, kKeyBasisCapacity> rows;
   int n = 0;
 
   int Dim() const { return n; }
@@ -319,7 +325,7 @@ struct KeyBasis {
     if (v == 0) {
       return false;
     }
-    CHECK_LT(n, 16);
+    CHECK_LT(n, kKeyBasisCapacity);
     int pos = n;
     while (pos > 0 && rows[pos - 1] < v) {
       rows[pos] = rows[pos - 1];
@@ -436,7 +442,10 @@ bool IsRankOneSpannedCandidate(const std::vector<uint64_t> &coset_keys,
       count += it->second.size();
     }
   }
-  if (rank_ones.b0.Dim() + static_cast<int>(count) < want) {
+  // Compared in size_t: a count of 2^31 or more must not wrap to a small int
+  // and reject a genuine witness.
+  if (static_cast<std::size_t>(rank_ones.b0.Dim()) + count <
+      static_cast<std::size_t>(want)) {
     return false;
   }
   scratch->rows.assign(rank_ones.b0.rows.begin(), rank_ones.b0.rows.end());

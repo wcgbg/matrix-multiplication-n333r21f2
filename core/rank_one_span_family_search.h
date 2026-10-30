@@ -67,7 +67,7 @@ namespace rank_one_span_internal {
 //     inside each I_f.
 //   - dmax = k−1: a (k−1)-subspace of some I_f plus one occupied generator
 //     outside it (one exists by (1)), with the growth filter (3).
-//   - k = 3 remainder (all d_f ≤ 1): Σ_f d_f ≤ F; impossible iff F < R_3 —
+//   - k = 3 remainder (all d_f ≤ 1): Σ_f d_f ≤ F; impossible if F < R_3 —
 //     checked at runtime, else kOverBudget.
 //   - k = 4 remainder (all d_f ≤ 2): L := #{f : d_f = 2} ≥ R_4 − F, and we
 //     require R_4 − F ≥ 3 (else kOverBudget), so at least three families
@@ -118,7 +118,8 @@ public:
 
   // Preconditions (CHECKed): target_rank >= span.rho and the applicability
   // guards of RankOneSpanFamilySearch (e <= kMaxFamilyK, dq <= kMaxFamilyDq,
-  // min(rb, rc) <= kMaxFamilySideDim; they bound the table sizes below).
+  // min(rb, rc) <= kMaxFamilySideDim, max(rb, rc) <= kMaxFamilyOtherSideDim;
+  // they bound the table sizes below and the KeyBasis row count).
   // Builds the read-only search tables and charges their cost to setup_ops_.
   FamilySearch(const Span &span, int target_rank, uint64_t op_budget,
                bool parallel)
@@ -132,6 +133,7 @@ public:
     CHECK_LE(e_, kMaxFamilyK);
     CHECK_LE(dq_, kMaxFamilyDq);
     CHECK_LE(std::min(rb_, rc_), kMaxFamilySideDim);
+    CHECK_LE(std::max(rb_, rc_), kMaxFamilyOtherSideDim);
     ComputeFreePos();
     BuildFamilies();
     BuildBuckets();
@@ -657,8 +659,8 @@ private:
   }
 
   // Case driver: runs `worker(ctx, i)` for i in [0, n) -- serially with a
-  // single context (deterministic; the verifier's mode), or chunked under
-  // tbb::parallel_for with one context per chunk.
+  // single context (deterministic), or chunked under tbb::parallel_for with one
+  // context per chunk (the verifier's mode; see the class comment).
   template <class Worker>
   void RunCase(std::size_t n, const Worker &worker) const {
     if (parallel_ && n > 1) {
@@ -710,7 +712,10 @@ private:
   std::vector<int> free_pos_;
   std::vector<Family> families_;
   std::vector<uint64_t> occ_words_;
-  std::vector<uint8_t> cmult_; // #{f : q in I_f}, saturating at 255
+  // #{f : q in I_f}, saturating at 255. Every filter compares it (or a sum
+  // of it) with at most need_ <= rb * rc + kMaxFamilyK <= 115 under the
+  // guards, so saturation never changes a filter's outcome.
+  std::vector<uint8_t> cmult_;
   std::vector<uint64_t> occupied_;
   LinearBasis<NB * NC> b0_;
   boost::unordered_flat_map<uint64_t, std::vector<Row>> buckets_;
@@ -746,7 +751,8 @@ RankOneSpanResult RankOneSpanFamilySearch(const SliceSpanA<P, NA, NB, NC> &span,
   *ops_out = 0;
   CHECK_GE(target_rank, rho);
   if (e > kMaxFamilyK || dq > kMaxFamilyDq ||
-      std::min(rb, rc) > kMaxFamilySideDim) {
+      std::min(rb, rc) > kMaxFamilySideDim ||
+      std::max(rb, rc) > kMaxFamilyOtherSideDim) {
     return RankOneSpanResult::kOverBudget;
   }
   FamilySearch<P, NA, NB, NC> search(span, target_rank, op_budget, parallel);

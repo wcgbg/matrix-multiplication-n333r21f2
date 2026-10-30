@@ -61,14 +61,18 @@
 //
 // `max_subspaces` is the operation budget: the v1 engine charges its
 // enumeration size against it up front, the v2 family search counts operations
-// as it goes. Engine choice depends only on the tensor and target (see
-// kRankOneSpanV1CostThreshold), so a proof produced under any sufficient
-// budget re-verifies under any other sufficient budget through the identical
-// path. kOverBudget makes no claim.
+// as it goes. The first engine tried depends only on the tensor and target
+// (see kRankOneSpanV1CostThreshold); when the family search runs over budget,
+// v1 is the fallback if affordable. A larger budget may therefore decide
+// through the family search where a smaller one fell back to v1, but both
+// engines decide the same predicate exactly, so the verdict is the same.
+// kOverBudget makes no claim.
 //
-// `parallel` lets the family search use TBB internally (prover-side only —
-// the verdict is unaffected, but op counts and the exact over-budget cutoff
-// become timing dependent, so the verifier keeps the default false).
+// `parallel` lets the family search use TBB internally. The verdict is
+// unaffected; the op count at which an over-budget run stops is timing
+// dependent, but on an exclusion every worker finishes its share, so whether a
+// kExcluded run fits the budget is not. The verifier runs in parallel (see
+// VerifyRankOneSpanProof in subspace_bounds/verifier/verifier.h).
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
 RankOneSpanResult RankOneSpanExcludeA(const Tensor<P, NA, NB, NC> &tensor,
                                       int target_rank, uint64_t max_subspaces,

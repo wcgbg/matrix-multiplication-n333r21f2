@@ -178,6 +178,9 @@ public:
   StoreSet store;
 
   SymmetryGroup() : query(tables_), store(tables_) {}
+  // query/store refer to this object's tables_, so a copy would dangle.
+  SymmetryGroup(const SymmetryGroup &) = delete;
+  SymmetryGroup &operator=(const SymmetryGroup &) = delete;
 };
 
 } // namespace matrix

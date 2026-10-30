@@ -1,6 +1,10 @@
 #include "core/backtracking_proof.h"
 
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -72,6 +76,10 @@ TEST(BacktrackingProofTest, GetBacktrackingProofArchivePath) {
   EXPECT_EQ(GetBacktrackingProofArchivePath("cert_n3.pb.txt"), "cert_n3.btp");
   EXPECT_EQ(GetBacktrackingProofArchivePath("proof/cert_n4.pb"),
             "proof/cert_n4.btp");
+  EXPECT_EQ(GetBacktrackingProofArchivePath("cert_n333.pb.txt.gz"),
+            "cert_n333.btp");
+  EXPECT_EQ(GetBacktrackingProofArchivePath("cert_n333.pb.gz"),
+            "cert_n333.btp");
 }
 
 namespace {
@@ -143,6 +151,36 @@ TEST(BacktrackingProofArchiveTest, EmptyArchiveRoundTrip) {
   for (int i = 0; i < 4; ++i) {
     EXPECT_TRUE(loaded.compressed[i].empty());
   }
+}
+
+// Counts and lengths read from an untrusted archive must be backed by the file
+// (or the decompressed body) before anything is allocated for them.
+TEST(BacktrackingProofArchiveDeathTest, RejectsLengthsBeyondTheData) {
+  const std::string path = testing::TempDir() + "/archive_bad_count.btp";
+  BacktrackingProofArchive archive;
+  archive.Resize(2);
+  archive.Set(0, MakeProof(3, 10));
+  archive.Save(path);
+  const auto patch_u64 = [&](std::streamoff offset, uint64_t value) {
+    std::fstream f(path, std::ios::in | std::ios::out | std::ios::binary);
+    f.seekp(offset);
+    f.write(reinterpret_cast<const char *>(&value), sizeof(value));
+  };
+  // Header: 8-byte magic, uint32 version, uint64 count, then slot 0's length.
+  patch_u64(12, uint64_t{1} << 48);
+  EXPECT_DEATH(BacktrackingProofArchive::Load(path), "count exceeds");
+  archive.Save(path);
+  patch_u64(20, uint64_t{1} << 40);
+  EXPECT_DEATH(BacktrackingProofArchive::Load(path), "blob exceeds");
+
+  // A body whose entry count is larger than the data that follows it.
+  std::stringstream body;
+  MakeProof(1, 4).WriteBody(body);
+  std::string bytes = body.str();
+  const uint64_t huge = uint64_t{1} << 40;
+  std::memcpy(bytes.data(), &huge, sizeof(huge));
+  std::istringstream in(bytes);
+  EXPECT_DEATH(BacktrackingProof::ReadBody(in), "truncated");
 }
 
 TEST(BacktrackingProofTest, CompressDecompressRoundTrip) {

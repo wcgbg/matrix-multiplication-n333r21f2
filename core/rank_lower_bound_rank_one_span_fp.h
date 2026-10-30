@@ -475,7 +475,9 @@ bool SweepPivotSetFp(uint32_t pivots, int k, int dq, int rho,
     hit.clear();
     const std::size_t count =
         GatherBucketsFp<P, N>(rows, dq, rank_ones, &coef, &hit);
-    if (rank_ones.b0.Dim() + static_cast<int>(count) >= rho + k &&
+    // size_t, so a count of 2^31 or more cannot wrap and skip a witness.
+    if (static_cast<std::size_t>(rank_ones.b0.Dim()) + count >=
+            static_cast<std::size_t>(rho + k) &&
         SpansDimensionFp(rank_ones, hit, rho + k, &scratch)) {
       return true;
     }

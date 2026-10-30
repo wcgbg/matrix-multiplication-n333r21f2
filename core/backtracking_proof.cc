@@ -1,12 +1,16 @@
 #include "core/backtracking_proof.h"
 
+#include <algorithm>
 #include <bit>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <istream>
 #include <ostream>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "boost/iostreams/device/array.hpp"
 #include "boost/iostreams/device/back_inserter.hpp"
@@ -20,18 +24,35 @@ namespace io = boost::iostreams;
 namespace {
 constexpr char kArchiveMagic[8] = {'B', 'T', 'P', 'A', 'R', 'C', 'H', '\0'};
 constexpr uint32_t kArchiveVersion = 2;
+
+// Read `n` elements into `array`. The count comes from an untrusted file, so
+// the array grows in bounded chunks: a corrupt count fails on the short read
+// instead of allocating memory the stream does not back.
+template <class T>
+void ReadArray(std::istream &in, uint64_t n, std::vector<T> *array) {
+  constexpr uint64_t kChunk = uint64_t{1} << 20;
+  array->clear();
+  for (uint64_t done = 0; done < n;) {
+    const uint64_t step = std::min(kChunk, n - done);
+    array->resize(static_cast<size_t>(done + step));
+    in.read(reinterpret_cast<char *>(array->data() + done),
+            static_cast<std::streamsize>(step * sizeof(T)));
+    CHECK(in) << "truncated backtracking proof body";
+    done += step;
+  }
+}
 } // namespace
 
 std::string GetBacktrackingProofArchivePath(const std::string &proto_path) {
-  std::string prefix;
-  if (proto_path.ends_with(".pb.txt")) {
-    prefix = proto_path.substr(0, proto_path.size() - 7);
-  } else if (proto_path.ends_with(".pb")) {
-    prefix = proto_path.substr(0, proto_path.size() - 3);
-  } else {
-    LOG(FATAL) << "Unsupported file extension: " << proto_path;
+  // Every extension ReadProtoFromFile accepts (core/proto_io.h), so a gzipped
+  // certificate maps to the same uncompressed cert_<problem>.btp sidecar.
+  for (const char *ext : {".pb.txt.gz", ".pb.gz", ".pb.txt", ".pb"}) {
+    const std::string_view suffix(ext);
+    if (proto_path.ends_with(suffix)) {
+      return proto_path.substr(0, proto_path.size() - suffix.size()) + ".btp";
+    }
   }
-  return prefix + ".btp";
+  LOG(FATAL) << "Unsupported file extension: " << proto_path;
 }
 
 void BacktrackingProof::WriteBody(std::ostream &out) const {
@@ -59,21 +80,10 @@ BacktrackingProof BacktrackingProof::ReadBody(std::istream &in) {
   uint64_t n = 0;
   in.read(reinterpret_cast<char *>(&n), sizeof(n));
   CHECK(in);
-  proof.dfs_constraints_size_array.resize(static_cast<size_t>(n));
-  proof.mask_array.resize(static_cast<size_t>(n));
-  proof.query_elem_array.resize(static_cast<size_t>(n));
-  proof.store_elem_array.resize(static_cast<size_t>(n));
-  if (n > 0) {
-    in.read(reinterpret_cast<char *>(proof.dfs_constraints_size_array.data()),
-            n * sizeof(uint8_t));
-    in.read(reinterpret_cast<char *>(proof.mask_array.data()),
-            n * sizeof(uint32_t));
-    in.read(reinterpret_cast<char *>(proof.query_elem_array.data()),
-            n * sizeof(uint32_t));
-    in.read(reinterpret_cast<char *>(proof.store_elem_array.data()),
-            n * sizeof(uint32_t));
-    CHECK(in);
-  }
+  ReadArray(in, n, &proof.dfs_constraints_size_array);
+  ReadArray(in, n, &proof.mask_array);
+  ReadArray(in, n, &proof.query_elem_array);
+  ReadArray(in, n, &proof.store_elem_array);
   proof.Check();
   return proof;
 }
@@ -189,6 +199,16 @@ BacktrackingProofArchive::Load(const std::string &path) {
   in.read(reinterpret_cast<char *>(&count), sizeof(count));
   CHECK(in);
 
+  // The count and lengths are untrusted: check each against the bytes left in
+  // the file before allocating for it (every slot holds at least its 8-byte
+  // length).
+  const uint64_t file_size = std::filesystem::file_size(path);
+  const auto remaining = [&] {
+    return file_size - static_cast<uint64_t>(in.tellg());
+  };
+  CHECK_LE(count, remaining() / sizeof(uint64_t))
+      << "backtracking archive count exceeds the file size: " << path;
+
   // Read the compressed blobs verbatim (no decompression here — Get
   // decompresses a single proof on demand), so the archive is held in memory
   // compressed.
@@ -197,6 +217,8 @@ BacktrackingProofArchive::Load(const std::string &path) {
     uint64_t len = 0;
     in.read(reinterpret_cast<char *>(&len), sizeof(len));
     CHECK(in);
+    CHECK_LE(len, remaining())
+        << "backtracking archive blob exceeds the file size: " << path;
     if (len > 0) {
       archive.compressed[i].resize(static_cast<size_t>(len));
       in.read(archive.compressed[i].data(), static_cast<std::streamsize>(len));

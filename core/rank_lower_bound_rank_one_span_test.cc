@@ -147,6 +147,27 @@ TEST(FamilySearchTest, MaxLineFreeSizes) {
   EXPECT_EQ(MaxLineFree(4), 8);
 }
 
+// A core whose larger side exceeds kMaxFamilyOtherSideDim is outside the
+// family search's applicability guards (its key bases could overflow and its
+// rank-one sweep is 2^side): it must be rejected before any search work.
+// Slice i is b0 c_{2i} + b1 c_{2i+1}, so rb = 2, rc = 12, rho = 6, dq = 18.
+TEST(FamilySearchTest, LargeOtherSideIsOverBudget) {
+  using namespace rank_one_span_internal;
+  Tensor<2, 6, 2, 12> t = {};
+  for (int i = 0; i < 6; ++i) {
+    t[i][0][2 * i] = GF<2>::One();
+    t[i][1][2 * i + 1] = GF<2>::One();
+  }
+  const auto span = BuildSliceSpanA<2, 6, 2, 12>(t);
+  ASSERT_EQ(span.rb, 2);
+  ASSERT_EQ(span.rc, 12);
+  ASSERT_EQ(span.rho, 6);
+  uint64_t ops = 0;
+  EXPECT_EQ((RankOneSpanFamilySearch<2, 6, 2, 12>(span, 11, kBig, &ops)),
+            RankOneSpanResult::kOverBudget);
+  EXPECT_EQ(ops, 0u);
+}
+
 // The family search must agree with the exhaustive v1 enumeration wherever it
 // decides. <2,2,2> (rank 7): v1 decides all targets; the family search decides
 // targets up to rho + 2 here (its k = 3 coverage arithmetic fails with 15

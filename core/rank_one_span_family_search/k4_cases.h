@@ -208,7 +208,9 @@ void FamilySearch<P, NA, NB, NC>::CaseBeta() const {
 // (δ) exactly two distinct lines among the ≥ 3 family intersections, so
 // one line D lies in exactly two images (three or more is γ) and the
 // other, D', belongs to a third family and is disjoint from D (a common
-// point is α): Ū = D ⊕ D'. Roots: lines with exactly two families.
+// point is α): Ū = D ⊕ D'. Roots: lines with exactly two families. (A line
+// L ⊆ Ū inside some I_g is I_g ∩ Ū itself, since d_g ≤ 2, so the number of
+// images containing D is its multiplicity among the intersections.)
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
 void FamilySearch<P, NA, NB, NC>::CaseDelta() const {
   {

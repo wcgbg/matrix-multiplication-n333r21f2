@@ -255,6 +255,9 @@ public:
   StoreSet store;
 
   FpSymmetryGroup() : query(gl0_), store(gl1_) {}
+  // query/store refer to this object's tables, so a copy would dangle.
+  FpSymmetryGroup(const FpSymmetryGroup &) = delete;
+  FpSymmetryGroup &operator=(const FpSymmetryGroup &) = delete;
 };
 
 } // namespace matrix

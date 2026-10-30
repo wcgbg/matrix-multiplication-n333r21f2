@@ -111,4 +111,23 @@ TEST(ForcedProductDeathTest, RejectsEnumerationSizeOverflow) {
                "does not fit in 64 bits");
 }
 
+// The visit order must be a permutation of [0, num_iterations), including when
+// t * kScramblePrime exceeds 64 bits and num_iterations is a power of 3.
+TEST(ForcedProductTest, ScrambledIndexIsABijection) {
+  using forced_product_internal::kScramblePrime;
+  using forced_product_internal::ScrambledIndex;
+  constexpr uint64_t kSmall = 243; // 3^5
+  std::vector<bool> seen(kSmall, false);
+  for (uint64_t t = 0; t < kSmall; ++t) {
+    const uint64_t s = ScrambledIndex(t, kSmall);
+    ASSERT_LT(s, kSmall);
+    EXPECT_FALSE(seen[s]) << "t=" << t;
+    seen[s] = true;
+  }
+  // (n - 1) * p ≡ n - p (mod n); the 64-bit product would wrap.
+  constexpr uint64_t kLarge = 12157665459056928801u; // 3^40 < 2^64
+  EXPECT_EQ(ScrambledIndex(kLarge - 1, kLarge), kLarge - kScramblePrime);
+  EXPECT_EQ(ScrambledIndex(kLarge - 2, kLarge), kLarge - 2 * kScramblePrime);
+}
+
 } // namespace

@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <limits>
 
 #include "core/dynamic_matrix.h"
 #include "core/tensor.h"

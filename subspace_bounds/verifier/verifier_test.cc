@@ -1,5 +1,7 @@
 #include "subspace_bounds/verifier/verifier.h"
 
+#include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -251,6 +253,28 @@ TEST(VerifierDeathTest, RejectsMalformedCertificateBeforeCheckingProof) {
   proof.set_extra_constraint(16);
   EXPECT_DEATH(VerifyDegenerateProof<Problem>({}, 1, proof, group, map),
                "extra constraint code");
+  rt.clear_constraints();
+  rt.set_rank_lower_bound(std::numeric_limits<int32_t>::min());
+  rt.mutable_rank_lower_bound_proof()->mutable_rank_one_span_proof();
+  EXPECT_DEATH(VerifyOne<Problem>(rt, group, map, archive), "negative bound");
+}
+
+// A certificate must name the problem it was built for; an empty or different
+// name is rejected even when the dimensions match.
+TEST(VerifierDeathTest, RequiresMatchingProblemName) {
+  using Problem = matrix::Problem<2, 2, 2, 2>;
+  pb::Certificate certificate;
+  certificate.set_characteristic(Problem::kP);
+  certificate.set_extension_degree(1);
+  certificate.set_na(Problem::kNA);
+  certificate.set_nb(Problem::kNB);
+  certificate.set_nc(Problem::kNC);
+  certificate.add_constrained_tensors();
+  EXPECT_DEATH(VerifyRankLowerBound<Problem>(certificate, ""),
+               "problem_name does not match");
+  certificate.set_problem_name("matrix_q03_n222");
+  EXPECT_DEATH(VerifyRankLowerBound<Problem>(certificate, ""),
+               "problem_name does not match");
 }
 
 } // namespace

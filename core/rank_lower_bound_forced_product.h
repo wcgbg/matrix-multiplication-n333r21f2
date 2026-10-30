@@ -49,6 +49,15 @@ namespace forced_product_internal {
 // visit order so an early break is likely to hit a low-rank witness fast.
 inline constexpr uint64_t kScramblePrime = 73074167;
 
+// Position t of the scrambled visit order over [0, num_iterations). The product
+// is taken in 128 bits: for odd P, num_iterations = P^bit_width is not a power
+// of 2, so a wrapped 64-bit t * kScramblePrime would no longer be a bijection
+// and would skip combinations (see the SOUNDNESS NOTE above).
+inline uint64_t ScrambledIndex(uint64_t t, uint64_t num_iterations) {
+  return static_cast<uint64_t>(
+      (static_cast<unsigned __int128>(t) * kScramblePrime) % num_iterations);
+}
+
 // The NB × NC rank of every a-slice.
 template <int P, std::size_t NA, std::size_t NB, std::size_t NC>
 std::vector<int> SliceRanks(const Tensor<P, NA, NB, NC> &tensor) {
@@ -247,7 +256,7 @@ int RankLowerBoundForcedProductA(const Tensor<P, NA, NB, NC> &tensor,
             break;
           }
           // Scrambled visit order.
-          const uint64_t scrambled = (t * kScramblePrime) % num_iterations;
+          const uint64_t scrambled = ScrambledIndex(t, num_iterations);
           const Tensor<P, NA, NB, NC> tensor_t = FoldForcedProducts(
               part.r2p, r1_bc_data, part.r1_bc_rows, bit_width, scrambled);
           int remaining = RankLowerBoundFlatten<P, NA, NB, NC>(

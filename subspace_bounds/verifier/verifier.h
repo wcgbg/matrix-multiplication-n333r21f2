@@ -186,6 +186,7 @@ void VerifyOne(const pb::ConstrainedTensor &rt,
   // A claimed positive bound must carry a proof; a 0 bound is vacuously true.
   const int rank_lower_bound =
       rt.has_rank_lower_bound() ? rt.rank_lower_bound() : 0;
+  CHECK_GE(rank_lower_bound, 0);
   const auto &proof = rt.rank_lower_bound_proof();
   if (proof.proof_case() == pb::RankLowerBoundProof::PROOF_NOT_SET) {
     CHECK_LE(rank_lower_bound, 0) << "Orbit " << rt.index() << " claims bound "
@@ -237,10 +238,7 @@ int VerifyRankLowerBound(const pb::Certificate &certificate,
   CHECK_EQ(certificate.na(), Problem::kNA);
   CHECK_EQ(certificate.nb(), Problem::kNB);
   CHECK_EQ(certificate.nc(), Problem::kNC);
-  if (!certificate.problem_name().empty()) {
-    CHECK_EQ(certificate.problem_name(), Problem::Name())
-        << "Certificate problem_name does not match the compiled-in problem";
-  }
+  CHECK_EQ(certificate.problem_name(), Problem::Name());
   CHECK_GT(certificate.constrained_tensors_size(), 0);
 
   // Load the backtracking-trace archive once (read-only during the parallel
