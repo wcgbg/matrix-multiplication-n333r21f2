@@ -186,7 +186,8 @@ void VerifyOne(const pb::ConstrainedTensor &rt,
   // A claimed positive bound must carry a proof; a 0 bound is vacuously true.
   const int rank_lower_bound =
       rt.has_rank_lower_bound() ? rt.rank_lower_bound() : 0;
-  CHECK_GE(rank_lower_bound, 0);
+  CHECK_GE(rank_lower_bound, 0)
+      << "Orbit " << rt.index() << " claims a negative bound";
   const auto &proof = rt.rank_lower_bound_proof();
   if (proof.proof_case() == pb::RankLowerBoundProof::PROOF_NOT_SET) {
     CHECK_LE(rank_lower_bound, 0) << "Orbit " << rt.index() << " claims bound "

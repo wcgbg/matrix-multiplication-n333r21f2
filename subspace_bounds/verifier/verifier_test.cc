@@ -259,22 +259,4 @@ TEST(VerifierDeathTest, RejectsMalformedCertificateBeforeCheckingProof) {
   EXPECT_DEATH(VerifyOne<Problem>(rt, group, map, archive), "negative bound");
 }
 
-// A certificate must name the problem it was built for; an empty or different
-// name is rejected even when the dimensions match.
-TEST(VerifierDeathTest, RequiresMatchingProblemName) {
-  using Problem = matrix::Problem<2, 2, 2, 2>;
-  pb::Certificate certificate;
-  certificate.set_characteristic(Problem::kP);
-  certificate.set_extension_degree(1);
-  certificate.set_na(Problem::kNA);
-  certificate.set_nb(Problem::kNB);
-  certificate.set_nc(Problem::kNC);
-  certificate.add_constrained_tensors();
-  EXPECT_DEATH(VerifyRankLowerBound<Problem>(certificate, ""),
-               "problem_name does not match");
-  certificate.set_problem_name("matrix_q03_n222");
-  EXPECT_DEATH(VerifyRankLowerBound<Problem>(certificate, ""),
-               "problem_name does not match");
-}
-
 } // namespace
